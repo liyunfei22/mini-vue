@@ -1,8 +1,12 @@
 const buket: Set<Function> = new Set();
-const data = { text: 'hello world' };
+// 全局变量存储被应用的副作用
+let activeEffect;
+const data:any = { text: 'hello world' };
 const obj = new Proxy(data, {
   get (target, key) {
-    buket.add(effect);
+    if (activeEffect) {
+      buket.add(activeEffect);
+    }
     return target[key]
   },
   set (target, key, value) {
@@ -11,10 +15,13 @@ const obj = new Proxy(data, {
     return true;
   }
 });
-function effect () {
-  console.log(obj.text)
+function effect (fn) {
+  activeEffect = fn
+  fn()
 }
-effect();
+effect(() => {
+  console.log(obj.text)
+});
 setTimeout(() => {
-  obj.text = 'lla'
+  obj.text1 = 'lla'
 }, 1000)
