@@ -1,27 +1,46 @@
-const buket: Set<Function> = new Set();
+const buket = new WeakMap();
 // 全局变量存储被应用的副作用
-let activeEffect;
-const data:any = { text: 'hello world' };
+let activeEffect: any;
+const data: any = { text: "hello world" };
 const obj = new Proxy(data, {
-  get (target, key) {
-    if (activeEffect) {
-      buket.add(activeEffect);
-    }
-    return target[key]
+  get(target, key) {
+    track(target, key)
+    return target[key];
   },
-  set (target, key, value) {
+  set(target, key, value) {
+    // 设置属性
     target[key] = value;
-    buket.forEach(fn => fn())
-    return true;
+    
+    return true
   }
 });
-function effect (fn) {
-  activeEffect = fn
-  fn()
+function track (target, key) {
+  if (!activeEffect) return;
+    let depsMap = buket.get(target);
+    if (!depsMap) {
+      buket.set(target, (depsMap = new Map()));
+    }
+    let deps = depsMap.get(key);
+    if (!deps) {
+      depsMap.set(key, (deps = new Set()));
+    }
+    deps.add(activeEffect);
+}
+function trigger (target, key) {
+  // 从桶中取出depsMap {'target' => map}
+  const depsMap = buket.get(target);
+  if (!depsMap) return true;
+  // 根据key取出所有副作用函数
+  const effects = depsMap.get(key);
+  effects && effects.forEach((fn) => fn());
+}
+function effect(fn) {
+  activeEffect = fn;
+  fn();
 }
 effect(() => {
-  console.log(obj.text)
+  console.log(obj.text);
 });
 setTimeout(() => {
-  obj.text1 = 'lla'
-}, 1000)
+  obj.text1 = "lla";
+}, 1000);
