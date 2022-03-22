@@ -1,7 +1,7 @@
 const buket = new WeakMap();
 // 全局变量存储被应用的副作用
 let activeEffect: any;
-const data: any = { text: "hello world" };
+const data: any = { ok: true, text: "hello world" };
 const obj = new Proxy(data, {
   get(target, key) {
     track(target, key)
@@ -10,7 +10,7 @@ const obj = new Proxy(data, {
   set(target, key, value) {
     // 设置属性
     target[key] = value;
-    
+    trigger (target, key)
     return true
   }
 });
@@ -39,8 +39,9 @@ function effect(fn) {
   fn();
 }
 effect(() => {
-  console.log(obj.text);
+  console.log('执行')
+  console.log(obj.ok ? obj.text: 'not');
 });
 setTimeout(() => {
-  obj.text1 = "lla";
+  obj.ok = false;
 }, 1000);
