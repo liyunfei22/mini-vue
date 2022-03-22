@@ -1,4 +1,5 @@
 var buket = new WeakMap();
+debugger
 // 全局变量存储被应用的副作用
 var activeEffect;
 var data = { text: 'hello world' };
