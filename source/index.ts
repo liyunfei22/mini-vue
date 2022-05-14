@@ -1,17 +1,19 @@
-const buket = new WeakMap();
 // 全局变量存储被应用的副作用
+const buket = new WeakMap();
+// 一个全局变量用来注册副作用函数
 let activeEffect: any;
-const effectStack:Function[] = []
+const effectStack: Function[] = []
+
 const data: any = { foo: 1 };
+
 let temp1, temp2;
+
 const obj = new Proxy(data, {
   get(target, key) {
-    console.log('get...', key)
     track(target, key)
     return target[key];
   },
   set(target, key, value) {
-    console.log('set...', key)
     // 设置属性
     target[key] = value;
     trigger (target, key)
@@ -53,9 +55,11 @@ function cleanup(effectFn) {
   }
   effectFn.deps.length = 0
 }
+// effect 函数用于注册副作用函数
 function effect(fn, options = {}) {
   const effectFn = () => {
     cleanup(effectFn)
+    // 将副作用函数赋值给activeEffect
     activeEffect = effectFn
     effectStack.push(activeEffect)
     fn()
