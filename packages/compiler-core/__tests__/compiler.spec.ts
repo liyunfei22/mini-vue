@@ -69,7 +69,8 @@ describe('compile (transform + codegen)', () => {
   it('generates element vnode with props', () => {
     const { code } = compileCode(`<div class="a">{{ n }}</div>`)
     expect(code).toContain(`with (_ctx)`)
-    expect(code).toContain(`_createElementVNode("div"`)
+    // 7-3：根节点成为 block → _openBlock() + _createElementBlock("div"...)
+    expect(code).toContain(`_openBlock(), _createElementBlock("div"`)
     expect(code).toContain(`{class: "a"}`)
     expect(code).toContain(`_toDisplayString(n)`)
   })
@@ -94,6 +95,7 @@ describe('compile (transform + codegen)', () => {
   it('resolves component tags via resolveComponent', () => {
     const { code } = compileCode(`<Child/>`)
     expect(code).toContain(`_resolveComponent("Child")`)
-    expect(code).toContain(`_createVNode(`)
+    // 组件根以 block 化（createElementBlock 内部走 createVNode 计算 shapeFlag）
+    expect(code).toContain(`_createElementBlock(_resolveComponent("Child")`)
   })
 })

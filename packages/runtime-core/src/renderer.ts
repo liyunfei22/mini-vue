@@ -25,7 +25,7 @@
  *   - 事件监听用朴素 add/remove（不做 invoker 缓存）
  *   - 无 keepAlive/teleport/suspense/transition
  */
-import { EMPTY_ARR, EMPTY_OBJ, isArray, ShapeFlags } from '@mini-vue/shared'
+import { EMPTY_ARR, EMPTY_OBJ, isArray, PatchFlags, ShapeFlags } from '@mini-vue/shared'
 import { effect } from '@mini-vue/reactivity'
 import { createComponentInstance, setupComponent } from './component'
 import { renderComponentRoot } from './componentRenderUtils'
@@ -276,25 +276,116 @@ function baseCreateRenderer(options: RendererOptions) {
     const el = (n2.el = n1.el!)
     const oldProps = (n1.props || EMPTY_OBJ) as Data
     const newProps = (n2.props || EMPTY_OBJ) as Data
+    const patchFlag = n2.patchFlag
+    const dynamicProps = n2.dynamicProps
 
-    // props diff —— 阶段 3 用朴素逐 key 比较（阶段 4 引入 invoker 与更多优化）
+    // ---- 7-3 props 动态路径（编译期标记驱动）----
     if (oldProps !== newProps) {
-      for (const key of Object.keys(newProps)) {
-        if (key !== 'key' && key !== 'ref' && newProps[key] !== oldProps[key]) {
-          hostPatchProp(el, key, oldProps[key], newProps[key])
+      const hasDynamicFlag = patchFlag & (PatchFlags.CLASS | PatchFlags.STYLE | PatchFlags.PROPS | PatchFlags.FULL_PROPS)
+      if (patchFlag === PatchFlags.BAIL || !hasDynamicFlag) {
+        // 无优化标记：朴素全量 diff（回退路径，保证安全）
+        for (const key of Object.keys(newProps)) {
+          if (key !== 'key' && key !== 'ref' && newProps[key] !== oldProps[key]) {
+            hostPatchProp(el, key, oldProps[key], newProps[key])
+          }
         }
-      }
-      for (const key of Object.keys(oldProps)) {
-        if (key !== 'key' && key !== 'ref' && !(key in newProps)) {
-          hostPatchProp(el, key, oldProps[key], null)
+        for (const key of Object.keys(oldProps)) {
+          if (key !== 'key' && key !== 'ref' && !(key in newProps)) {
+            hostPatchProp(el, key, oldProps[key], null)
+          }
+        }
+      } else {
+        // CLASS / STYLE 独立处理（真 Vue 同款：这两类不住 dynamicProps 名单）
+        if (patchFlag & PatchFlags.CLASS) {
+          hostPatchProp(el, 'class', oldProps['class'], newProps['class'])
+        }
+        if (patchFlag & PatchFlags.STYLE) {
+          hostPatchProp(el, 'style', oldProps['style'], newProps['style'])
+        }
+        // PROPS：按编译期声明的名单逐个 diff
+        if (patchFlag & PatchFlags.PROPS) {
+          const keys = dynamicProps || EMPTY_ARR
+          for (const key of keys) {
+            if (key === 'class' || key === 'style') continue
+            if (newProps[key] !== oldProps[key]) {
+              hostPatchProp(el, key, oldProps[key], newProps[key])
+            }
+          }
+          for (const key of keys) {
+            if (key === 'class' || key === 'style') continue
+            if (!(key in newProps)) {
+              hostPatchProp(el, key, oldProps[key], null)
+            }
+          }
+        }
+        // FULL_PROPS：全键（但要排除 key/ref/class/style 防重）
+        if (patchFlag & PatchFlags.FULL_PROPS) {
+          for (const key of new Set([...Object.keys(newProps), ...Object.keys(oldProps)])) {
+            if (key === 'key' || key === 'ref' || key === 'class' || key === 'style') continue
+            if (newProps[key] !== oldProps[key]) {
+              hostPatchProp(el, key, oldProps[key], newProps[key])
+            }
+          }
         }
       }
     }
 
-    patchChildren(n1, n2, el, null, parentComponent)
+    patchChildrenAndBlock(n1, n2, el, parentComponent)
 
     // 指令 updated 钩子（beforeUpdate 在 patchChildren 前触发更贴合语义，mini 简化到 updated）
     invokeDirectiveHook(n2, n1, parentComponent, 'updated')
+  }
+
+  /**
+   * 7-3 children 快速路径：
+   *   - 块更新：dynamicChildren 都在 → 只 patch 动态节点（跳过整棵 diff）
+   *   - TEXT flag：children 是动态文本 → setText
+   *   否则回退全量三态 diff
+   */
+  function patchChildrenAndBlock(
+    n1: VNode,
+    n2: VNode,
+    el: any,
+    parentComponent: ComponentInternalInstance | null,
+  ) {
+    const patchFlag = n2.patchFlag
+
+    // 块快速路径（root 与所有有 dynamicChildren 的块）
+    // 守卫：dynamicChildren 必须「非空 + 等长」才升，否则回退全量 diff——
+    //  `<div>{{x}}</div>` 这类根自身是动态（TEXT 位）但无独立动态子节点的情况，
+    //  块快速路径会漏更新根自己的文本；真 Vue 在 dynamicChildren 为空时同样落全量。
+    if (
+      n1.dynamicChildren &&
+      n2.dynamicChildren &&
+      (n2.dynamicChildren as any[]).length > 0 &&
+      (n1.dynamicChildren as any[]).length === (n2.dynamicChildren as any[]).length
+    ) {
+      patchBlockChildren(n1, n2, el, parentComponent)
+      return
+    }
+
+    // TEXT 快速路径
+    if ((patchFlag & PatchFlags.TEXT) && typeof n2.children === 'string') {
+      if (n1.children !== n2.children) {
+        hostSetElementText(el, n2.children)
+      }
+      return
+    }
+
+    patchChildren(n1, n2, el, null, parentComponent)
+  }
+
+  function patchBlockChildren(
+    n1: VNode,
+    n2: VNode,
+    fallbackContainer: any,
+    parentComponent: ComponentInternalInstance | null,
+  ) {
+    const oldDyn = (n1.dynamicChildren || []) as VNode[]
+    const newDyn = (n2.dynamicChildren || []) as VNode[]
+    for (let i = 0; i < newDyn.length; i++) {
+      patch(oldDyn[i], newDyn[i], fallbackContainer, null, parentComponent)
+    }
   }
 
   /**

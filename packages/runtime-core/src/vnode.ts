@@ -95,6 +95,7 @@ function createBaseVNode(
   dynamicProps: string[] | null = null,
   shapeFlag: number = type === Fragment ? 0 : ShapeFlags.ELEMENT,
   needFullChildrenNormalization = false,
+  isBlockNode = false,
 ): VNode {
   const vnode: VNode = {
     __v_isVNode: true,
@@ -128,6 +129,15 @@ function createBaseVNode(
     vnode.shapeFlag |= isString(children)
       ? ShapeFlags.TEXT_CHILDREN
       : ShapeFlags.ARRAY_CHILDREN
+  }
+
+  // block 收集（7-3）：动态（patchFlag>0 或组件）且非块自身 → 进当前块
+  if (
+    !isBlockNode &&
+    currentBlock &&
+    (vnode.patchFlag > 0 || vnode.shapeFlag & ShapeFlags.COMPONENT)
+  ) {
+    currentBlock.push(vnode)
   }
 
   return vnode
@@ -184,6 +194,7 @@ function _createVNode(
     dynamicProps,
     shapeFlag,
     true,
+    isBlockNode,
   )
 }
 
@@ -321,4 +332,39 @@ export function withDirectives<T extends VNode>(vnode: T, directives: any[]): T 
 }
 
 import { currentRenderingInstance } from './componentRenderContext'
+
+// ---------------------------------------------------------------
+// block 树（7-3：openBlock/createElementBlock + dynamicChildren）
+// ---------------------------------------------------------------
+
+export let currentBlock: VNode[] | null = null
+const blockStack: (VNode[] | null)[] = []
+
+/** 开启一个新块：此后创建的「动态 vnode」会被收进 currentBlock */
+export function openBlock() {
+  blockStack.push((currentBlock = []))
+}
+
+function closeBlock() {
+  currentBlock = blockStack.pop() ?? null
+}
+
+function setupBlock(vnode: VNode): VNode {
+  vnode.dynamicChildren = currentBlock || null
+  closeBlock()
+  return vnode
+}
+
+/** 块根：先整棵创建（含收动态子节点），再把 dynamicChildren 挂到自己身上 */
+export function createElementBlock(
+  type: any,
+  props?: any,
+  children?: any,
+  patchFlag?: number,
+  dynamicProps?: string[] | null,
+): VNode {
+  const vnode = createVNode(type, props, children, patchFlag, dynamicProps, true /* isBlockNode */)
+  return setupBlock(vnode)
+}
+
 export { createBaseVNode as createElementVNode }

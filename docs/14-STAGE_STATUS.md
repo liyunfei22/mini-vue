@@ -141,15 +141,17 @@
 - 指令钩子时机：created→mounted / updated / unmounted；自定义指令驱动测试全套过；<br>
 - public this 查找链含 $slots/$attrs/$emit/$props + globalProperties 兜底。
 
-## 阶段 7 — 内核补全（🚧）
+## 阶段 7 — 内核补全（✓）
 
 > 2026-09-20 计划修订：router / pinia 取消，本项目只做 vue 内核。阶段 7 把此前降级的
 > 有价值核心项补回；阶段 8 用展示 app 收官。
 
-- [x] **7-1** Options API 基础（data/computed/methods/watch/生命周期选项 + publicThis 合并）+ v-model 修饰符（.trim/.number/.lazy）（✅ 2026-09-20，199 测试绿）
-- [x] **7-2** Transition（CSS 过渡简版：enter/leave 类 + 延迟卸载）+ KeepAlive（隐藏式去激活 + 缓存复用 + 状态保留）（✅ 2026-09-20，203 测试绿）
-- [ ] **7-3** 编译器优化初版（静态提升 + patchFlag + block 树）
+- [x] **7-1** Options API 基础（data/computed/methods/watch/生命周期选项 + publicThis 合并）+ v-model 修饰符（.trim/.number/.lazy）（✅ 199 测试绿）
+- [x] **7-2** Transition（CSS 过渡简版）+ KeepAlive（隐藏式去激活 + 状态保留）+ 动态组件 （✅ 203 测试绿）
+- [x] **7-3** 编译器优化（patchFlag 动态标记 + block 树 dynamicChildren + 静态提升 hoistStatic）（✅ **208 测试绿**，tsc 0 错误）
 
-## 阶段 8 — mini-vue 展示 app + 文档收尾（○）
+**vue 内核补全收官** 🎉 —— 阶段 1–7 全部完成。
+
+## 阶段 8 — mini-vue 展示 app + 文档收尾（🚧 待开工）
 
 ## 阶段 9 — ❌ 已取消（原 capstone 全家桶自洽，随 router/pinia 一并移除）

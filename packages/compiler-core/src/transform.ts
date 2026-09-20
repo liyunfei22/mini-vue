@@ -176,6 +176,12 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
     const child = children[0]
     if (child.type === NodeTypes.ELEMENT && child.codegenNode) {
       root.codegenNode = child.codegenNode
+      // 7-3：单根 → 标记为 block（codegen 生成 _openBlock()+_createElementBlock(...)）
+      if (root.codegenNode.type === NodeTypes.VNODE_CALL) {
+        ;(root.codegenNode as any).isBlock = true
+        context.helper(OPEN_BLOCK)
+        context.helper(CREATE_ELEMENT_BLOCK)
+      }
     } else {
       root.codegenNode = child
     }
@@ -191,5 +197,5 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
 }
 
 // transform.ts 用的内部 helper 符号
-import { CREATE_COMMENT, TO_DISPLAY_STRING, helperNameMap } from './runtimeHelpers'
+import { CREATE_COMMENT, CREATE_ELEMENT_BLOCK, OPEN_BLOCK, TO_DISPLAY_STRING, helperNameMap } from './runtimeHelpers'
 const TO_DISPLAY_STRING_SYM = TO_DISPLAY_STRING

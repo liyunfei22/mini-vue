@@ -10,6 +10,33 @@
 
 export { ShapeFlags } from './shapeFlags'
 
+/**
+ * PatchFlags —— 编译期标记「该 vnode 哪些部分是动态的」
+ * （真 Vue packages/shared/src/patchFlags.ts；mini 用到的子集）
+ * 渲染器据此跳过静态 diff：
+ *   TEXT(1)     —— children 是动态文本（{{ x }}）
+ *   CLASS(2)    —— class 动态
+ *   STYLE(4)    —— style 动态
+ *   PROPS(8)    —— 部分 props 动态（dynamicProps 列具体键）
+ *   FULL_PROPS(16) —— 全部 props 动态
+ *   HOISTED(-1) —— 静态提升，永不再 patch
+ *   BAIL(-2)    —— 编译失败，回退全量 diff
+ */
+export const enum PatchFlags {
+  TEXT = 1,
+  CLASS = 1 << 1,
+  STYLE = 1 << 2,
+  PROPS = 1 << 3,
+  FULL_PROPS = 1 << 4,
+  NEED_HYDRATION = 1 << 5,
+  STABLE_FRAGMENT = 1 << 6,
+  KEYED_FRAGMENT = 1 << 7,
+  UNKEYED_FRAGMENT = 1 << 8,
+  DYNAMIC_SLOTS = 1 << 9,
+  HOISTED = -1,
+  BAIL = -2,
+}
+
 // ---------------------------------------------------------------
 // 构建标记
 // 真 Vue 在构建期通过 definePlugin 注入开发/生产两个版本；

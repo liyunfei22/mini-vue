@@ -14,6 +14,8 @@ export { renderComponentRoot } from './componentRenderUtils'
 export {
   createVNode,
   createElementVNode,
+  createElementBlock,
+  openBlock,
   cloneVNode,
   createTextVNode,
   createCommentVNode,

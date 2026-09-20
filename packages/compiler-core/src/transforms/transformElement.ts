@@ -11,6 +11,7 @@
  *   input/textarea → 内联 { value, onInput: $event => (x = $event.target.value) }
  *   checkbox/radio/select → props(checked/value) + withDirectives(运行时 vModel 指令)
  */
+import { PatchFlags } from '@mini-vue/shared'
 import {
   createArrayExpression,
   createCallExpression,
@@ -38,6 +39,14 @@ import {
   helperNameMap,
 } from '../runtimeHelpers'
 import type { NodeTransform } from '../transform'
+
+/** 单个动态 prop 的标记：class/style 给特定位，其余进 PROPS + dynamicProps */
+function markDynamicProp(flag: number, name: string, names: string[]): number {
+  if (name === 'class') return flag | PatchFlags.CLASS
+  if (name === 'style') return flag | PatchFlags.STYLE
+  names.push(name)
+  return flag | PatchFlags.PROPS
+}
 
 export const transformElement: NodeTransform = (node, context) => {
   return function postTransformElement() {
@@ -76,6 +85,19 @@ export const transformElement: NodeTransform = (node, context) => {
     const properties: any[] = []
     const dirs: any[] = []
 
+    // 7-3：统计动态点，产出 patchFlag（渲染器据此快速 patch）
+    let patchFlag = 0
+    let dynamicPropsNames: string[] | null = null
+    let hasDynamicProps = false
+    let hasDynamicText = false
+    // 预扫 children：是否有动态文本（插值/合并文本/文本调用）
+    // 注意 TEXT_CALL 要剥开看 content：纯静态文本也会被打包 TEXT_CALL（content=Text → 静态）
+    for (const c of el.children as any[]) {
+      if (c && isDynamicTextNode(c)) {
+        hasDynamicText = true
+      }
+    }
+
     for (let i = 0; i < el.props.length; i++) {
       const prop = el.props[i]
       if (prop.type === NodeTypes.ATTRIBUTE) {
@@ -93,14 +115,24 @@ export const transformElement: NodeTransform = (node, context) => {
         if (name === 'bind' && arg && exp) {
           if ((arg as any).isStatic) {
             properties.push(createObjectProperty(arg, exp))
+            // :class / :style 特定位，其它进 PROPS 名单
+            const argName = (arg as any).content
+            patchFlag = markDynamicProp(patchFlag, argName, dynamicPropsNames || (dynamicPropsNames = []))
+            hasDynamicProps = true
           } else {
-            // 动态 arg：{ [key]: value }
             properties.push({ type: NodeTypes.JS_PROPERTY, key: arg, value: exp, computed: true, loc: (arg as any).loc } as any)
+            patchFlag |= PatchFlags.FULL_PROPS
+            dynamicPropsNames = null
+            hasDynamicProps = true
           }
         } else if (name === 'on' && arg && exp) {
           const eventName = (arg as any).content
           const keyName = `on${eventName[0]?.toUpperCase()}${eventName.slice(1)}`
           properties.push(createObjectProperty(createSimpleExpression(keyName, true), exp))
+          // 事件 handler 也在变化（每条 onXxx 都是动态 prop）
+          patchFlag |= PatchFlags.PROPS
+          if (dynamicPropsNames && !dynamicPropsNames.includes(keyName)) dynamicPropsNames.push(keyName)
+          hasDynamicProps = true
         } else if (name === 'html' && exp) {
           properties.push(createObjectProperty(createSimpleExpression('innerHTML', true), exp))
         } else if (name === 'text' && exp) {
@@ -189,8 +221,16 @@ export const transformElement: NodeTransform = (node, context) => {
     // 组件标签用 _createVNode（会按「解析后的对象」算 COMPONENT shapeFlag）
     void isDynamicComponent
     context.helper(isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE)
-    let vnodeCall: any = createVNodeCall(vnodeTag, vnodeProps, vnodeChildren, -1)
+
+    if (hasDynamicText) patchFlag |= PatchFlags.TEXT
+    // 全静态 → HOISTED（可提升）
+    if (!hasDynamicProps && !hasDynamicText && dirs.length === 0 && !isComponent) {
+      patchFlag = -1
+    }
+
+    let vnodeCall: any = createVNodeCall(vnodeTag, vnodeProps, vnodeChildren, patchFlag)
     ;(vnodeCall as any).isComponent = isComponent
+    ;(vnodeCall as any).dynamicProps = dynamicPropsNames
     if (dirs.length) {
       vnodeCall = createCallExpression(context.helper(WITH_DIRECTIVES) as any, [
         vnodeCall,
@@ -272,4 +312,27 @@ function buildSlots(children: any[]): any {
     )
   }
   return createObjectExpression(entries)
+}
+
+/**
+ * 判定一个 children 节点是否「动态文本」：
+ *   Interpolation / Compound（必含插值）→ 动态；
+ *   TEXT_CALL 剥开 content：Text=静态文本，Interpolation/Compound=动态。
+ */
+function isDynamicTextNode(c: any): boolean {
+  if (!c) return false
+  if (c.type === NodeTypes.INTERPOLATION) return true
+  if (c.type === NodeTypes.COMPOUND_EXPRESSION) {
+    // 递归：只有「含插值」的复合才算动态（纯文本单节点换包不算）
+    return c.children.some(
+      (ch: any) =>
+        typeof ch !== 'string' &&
+        (ch.type === NodeTypes.INTERPOLATION ||
+          (ch.type === NodeTypes.COMPOUND_EXPRESSION && isDynamicTextNode(ch))),
+    )
+  }
+  if (c.type === NodeTypes.TEXT_CALL) {
+    return isDynamicTextNode(c.content)
+  }
+  return false
 }

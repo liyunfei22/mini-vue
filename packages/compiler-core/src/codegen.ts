@@ -31,8 +31,10 @@ import {
 import { Fragment } from './ast'
 import {
   CREATE_COMMENT,
+  CREATE_ELEMENT_BLOCK,
   CREATE_ELEMENT_VNODE,
   CREATE_VNODE,
+  OPEN_BLOCK,
   RENDER_LIST,
   TO_DISPLAY_STRING,
   helperNameMap,
@@ -94,6 +96,22 @@ export function generate(ast: RootNode, options: CodegenOptions = {}): CodegenRe
     newline()
   }
 
+  // 7-3 静态提升：先收集可提升的静态子树，逐个生成 const（渲染期只会创建一次）
+  const hoistedNodes: any[] = []
+  collectHoistedNodes(ast.codegenNode, hoistedNodes)
+  if (hoistedNodes.length) {
+    for (let n = 0; n < hoistedNodes.length; n++) {
+      const tmp = createSubContext(context)
+      // 生成 const 本体时揭掉提升标记（防止 genVNodeCall 短路成 _hoisted_N 自引用）
+      const id = hoistedNodes[n]._hoistedId
+      hoistedNodes[n]._hoistedId = undefined
+      genNode(hoistedNodes[n], tmp)
+      hoistedNodes[n]._hoistedId = id
+      push(`const _hoisted_${n + 1} = ${tmp.code}`)
+      newline()
+    }
+  }
+
   push(`return function render(_ctx, _cache) {`)
   indent()
   push(`with (_ctx) {`)
@@ -102,6 +120,9 @@ export function generate(ast: RootNode, options: CodegenOptions = {}): CodegenRe
   poshRet: {
     if (ast.codegenNode) {
       push(`return `)
+      if ((ast.codegenNode as any).isBlock) {
+        push(`${context.helper(OPEN_BLOCK)}(), `)
+      }
       genNode(ast.codegenNode, context)
     } else {
       push(`return null`)
@@ -232,8 +253,17 @@ function genTextCall(node: any, context: CodegenContext) {
 }
 
 function genVNodeCall(node: any, context: CodegenContext) {
-  const { tag, props, children, patchFlag, isComponent } = node
-  const helper = isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE
+  // 静态提升节点：渲染期直接引用 const（不再现场生成）
+  if ((node as any)._hoistedId) {
+    context.push(`_hoisted_${(node as any)._hoistedId}`)
+    return
+  }
+  const { tag, props, children, patchFlag, isComponent, isBlock } = node
+  const helper = isBlock
+    ? CREATE_ELEMENT_BLOCK
+    : isComponent
+      ? CREATE_VNODE
+      : CREATE_ELEMENT_VNODE
   context.push(`${context.helper(helper)}(`)
   // tag
   if (tag === Fragment) {
@@ -259,7 +289,12 @@ function genVNodeCall(node: any, context: CodegenContext) {
   } else {
     context.push('null')
   }
-  context.push(`, ${patchFlag == null ? -1 : patchFlag})`)
+  context.push(`, ${patchFlag == null ? -1 : patchFlag}`)
+  // 动态 props 键列表（PROPS 位时渲染器按名单 diff）
+  if (node.dynamicProps && node.dynamicProps.length) {
+    context.push(`, [${node.dynamicProps.map((n: string) => JSON.stringify(n)).join(', ')}]`)
+  }
+  context.push(`)`)
 }
 
 function genCallExpression(node: any, context: CodegenContext) {
@@ -384,3 +419,66 @@ function genFor(node: any, context: CodegenContext) {
 }
 
 export { NodeTypes }
+
+// ---- 静态提升（7-3）----
+
+/**
+ * 预扫描：找出「全静态」的元素子树（patchFlag 恒 -1 且非组件/无指令/非块根），
+ * 打上 _hoistedId 并收集，codegen 把它们提升为 render 作用域的 const。
+ * 静态子树内不引用 _ctx，跨渲染复用同一 vnode → 渲染器 n1===n2 直接跳过 patch。
+ */
+function collectHoistedNodes(node: any, out: any[]) {
+  if (!node || typeof node !== 'object') return
+  if (node.type === NodeTypes.VNODE_CALL) {
+    const hoistable =
+      node.patchFlag === -1 &&
+      !node.isComponent &&
+      !node.isBlock &&
+      !node.dirs?.length &&
+      node.tag &&
+      typeof node.tag === 'string' &&
+      // children 必须是纯静态形态才能整体提升（JS 调用如 renderSlot 依赖 _ctx，提升会把
+      // _ctx 移出 with 作用域 → ReferenceError；多 children 数组也保守不升）
+      (node.children == null ||
+        typeof node.children === 'string' ||
+        node.children.type === NodeTypes.TEXT_CALL)
+    if (hoistable) {
+      // 子树一并提升（不深入）
+      ;(node as any)._hoistedId = out.length + 1
+      out.push(node)
+      return
+    }
+    // children 可能是「原始数组」或「ArrayExpression 节点（.elements）」
+    forNodesIn(node.children, (c: any) => collectHoistedNodes(c, out))
+  } else {
+    forNodesIn(node.children, (c: any) => collectHoistedNodes(c, out))
+    forNodesIn(node.elements, (c: any) => collectHoistedNodes(c, out))
+  }
+}
+
+/** 递归容器：兼容 JS 数组与 ArrayExpression 节点 */
+function forNodesIn(nodesLike: any, fn: (c: any) => void) {
+  if (!nodesLike) return
+  if (typeof nodesLike.forEach === 'function') {
+    nodesLike.forEach(fn)
+  } else if (nodesLike.elements && typeof nodesLike.elements.forEach === 'function') {
+    nodesLike.elements.forEach(fn)
+  }
+}
+
+/** 独立 buffer 的 codegen 上下文：提升 const 的表达式单独生成 */
+function createSubContext(main: CodegenContext): CodegenContext {
+  return {
+    code: '',
+    indentLevel: 0,
+    push(code: string) {
+      this.code += code
+    },
+    indent() {},
+    deindent() {},
+    newline() {},
+    helper(key: symbol) {
+      return main.helper(key)
+    },
+  }
+}

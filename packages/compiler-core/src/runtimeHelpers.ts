@@ -22,8 +22,8 @@ export const V_MODEL_SELECT = Symbol('vModelSelect')
 export const V_SHOW = Symbol('vShow')
 export const SET_BLOCK_TRACKING = Symbol('setBlockTracking')
 export const OPEN_BLOCK = Symbol('openBlock')
-export const CREATE_BLOCK = Symbol('createBlock')
 export const CREATE_VNODE = Symbol('createVNode')
+export const CREATE_ELEMENT_BLOCK = Symbol('createElementBlock')
 export const HYDRATE_ELEMENT = Symbol('hydrateElement')
 
 export const helperNameMap: Record<symbol, string> = {
@@ -43,6 +43,8 @@ export const helperNameMap: Record<symbol, string> = {
   [V_MODEL_SELECT]: 'vModelSelect',
   [V_SHOW]: 'vShow',
   [CREATE_VNODE]: 'createVNode',
+  [OPEN_BLOCK]: 'openBlock',
+  [CREATE_ELEMENT_BLOCK]: 'createElementBlock',
 }
 
 /** 设置已使用 helpers 的调试名（devtools/测试断言用） */
