@@ -83,7 +83,7 @@ export interface WatchHandle {
 // doWatch —— 实现内核
 // ---------------------------------------------------------------
 
-function doWatch(
+export function doWatch(
   source: any,
   cb: WatchCallback | null,
   { immediate, deep, flush }: WatchOptions = EMPTY_OBJ,

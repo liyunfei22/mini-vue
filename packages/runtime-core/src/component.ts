@@ -26,6 +26,7 @@ import { initSlots, type InternalSlots, type Slots } from './componentSlots'
 import { setCurrentInstance, unsetCurrentInstance } from './currentInstance'
 import { PublicInstanceProxyHandlers } from './componentPublicInstance'
 import { callWithErrorHandling, ErrorCodes } from './errorHandling'
+import { applyOptions, isOptionComponent } from './componentOptions'
 import type { VNode } from './vnode'
 
 // ---------------------------------------------------------------
@@ -65,6 +66,8 @@ export interface ComponentInternalInstance {
   // 头部数据
   props: Data
   attrs: Data
+  /** Options API 的 data/computed/methods 命名空间（setup 优先） */
+  data: Data
   slots: InternalSlots
   emitsOptions: ObjectEmitsOptions | null
   propsOptions: NormalizedPropsOptions
@@ -143,6 +146,8 @@ export function createComponentInstance(
     appContext,
     props: EMPTY_OBJ,
     attrs: EMPTY_OBJ,
+    // Options API 数据容器（无 data 选项时也为 {}，method/computed 可挂）
+    data: EMPTY_OBJ as any,
     // slots 必须用可变空对象（initSlots 会往里写 key）
     slots: {},
     emitsOptions: normalizeEmitsOptions(type),
@@ -210,6 +215,11 @@ function setupStatefulComponent(instance: ComponentInternalInstance) {
     handleSetupResult(instance, setupResult)
   } else {
     finishComponentSetup(instance)
+  }
+
+  // Options API 追加：setup（Composition）之后合并 data/computed/methods/watch/生命周期选项
+  if (isOptionComponent(Component)) {
+    applyOptions(instance, Component)
   }
 }
 

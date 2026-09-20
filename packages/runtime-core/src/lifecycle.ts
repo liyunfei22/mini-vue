@@ -53,6 +53,7 @@ function injectHook(
   }
 }
 
+export { injectHook }
 export const onBeforeMount = (hook: Function, target?: ComponentInternalInstance | null) =>
   injectHook(LifecycleHooks.BEFORE_MOUNT, hook, target)
 export const onMounted = (hook: Function, target?: ComponentInternalInstance | null) =>

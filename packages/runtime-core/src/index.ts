@@ -7,7 +7,7 @@
  */
 export * from '@mini-vue/reactivity'
 
-export { toDisplayString } from '@mini-vue/shared'
+export { toDisplayString, looseToNumber } from '@mini-vue/shared'
 
 export { renderComponentRoot } from './componentRenderUtils'
 

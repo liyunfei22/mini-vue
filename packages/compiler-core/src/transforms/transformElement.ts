@@ -28,6 +28,7 @@ import {
   CREATE_ELEMENT_VNODE,
   CREATE_VNODE,
   RESOLVE_COMPONENT,
+  LOOSE_TO_NUMBER,
   V_MODEL_CHECKBOX,
   V_MODEL_RADIO,
   V_MODEL_SELECT,
@@ -100,9 +101,24 @@ export const transformElement: NodeTransform = (node, context) => {
             properties.push(createObjectProperty(createSimpleExpression('value', true), exp))
             dirs.push(modelBinding(context, V_MODEL_SELECT, exp, modifiers))
           } else if (tag === 'input' || tag === 'textarea') {
-            // 文本形态：内联 value + onInput（值 = $event.target.value）
+            // 文本形态：内联 value + 事件/取值（支持 .lazy/.trim/.number 修饰符）
             properties.push(createObjectProperty(createSimpleExpression('value', true), exp))
-            properties.push(createObjectProperty(createSimpleExpression('onInput', true), createAssignment(exp, '.target.value')))
+            const lazy = modifiers.includes('lazy')
+            const eventName = lazy ? 'onChange' : 'onInput'
+            let valueExpr = '$event.target.value'
+            if (modifiers.includes('trim')) {
+              valueExpr = '$event.target.value.trim()'
+            } else if (modifiers.includes('number')) {
+              context.helper(LOOSE_TO_NUMBER)
+              // 用别名 `_looseToNumber`（顶层 const 解构），裸名在 with(_ctx) 里解析不到
+              valueExpr = `_${helperNameMap[LOOSE_TO_NUMBER]}($event.target.value)`
+            }
+            properties.push(
+              createObjectProperty(
+                createSimpleExpression(eventName, true),
+                createAssignment(exp, valueExpr),
+              ),
+            )
           } else if (tag === 'checkbox') {
             properties.push(createObjectProperty(createSimpleExpression('checked', true), exp))
             dirs.push(modelBinding(context, V_MODEL_CHECKBOX, exp, modifiers))
@@ -165,14 +181,14 @@ export const transformElement: NodeTransform = (node, context) => {
 }
 
 /**
- * 生成 `$event => (exp = $event[.target.value])` 形式的赋值箭头函数。
- * 文本形态取 `.target.value`；指令形态（checkbox 等）把值直接当 $event。
+ * 生成 `$event => (exp = <valueExpr>)` 形式的赋值箭头函数。
+ * text 形态默认 `$event.target.value`（.trim 加 .trim()）；指令形态传 `$event`。
  */
-function createAssignment(exp: any, valuePath = ''): any {
+function createAssignment(exp: any, valueExpr = '$event.target.value'): any {
   return {
     type: NodeTypes.JS_FUNCTION_EXPRESSION,
     params: [createSimpleExpression('$event', false)],
-    body: createSimpleExpression(`(${exp.content} = $event${valuePath})`, false),
+    body: createSimpleExpression(`(${exp.content} = ${valueExpr})`, false),
     loc: (exp as any).loc,
   }
 }
@@ -186,7 +202,7 @@ function modelBinding(context: any, helperSym: symbol, exp: any, modifiers: stri
   return createArrayExpression([
     createSimpleExpression(`_${helperNameMap[helperSym]}`, false),
     // 指令形态赋值器：value 原样回写（checkbox → el.checked、radio/select → el.value）
-    createAssignment(exp),
+    createAssignment(exp, '$event'),
     createSimpleExpression('', true),
     createSimpleExpression(modifiers.join('.'), true),
   ])

@@ -17,18 +17,20 @@ import type { ComponentInternalInstance, Data } from './component'
 
 export const PublicInstanceProxyHandlers: ProxyHandler<{ _: ComponentInternalInstance }> = {
   get({ _: instance }, key: string) {
-    const { ctx, setupState, props } = instance
+    const { ctx, setupState, props, data } = instance
 
     // 内部标记
     if (key === '__isVue') {
       return true
     }
 
-    // 访问优先级：setupState → props → ctx → $内建 → app.config.globalProperties
+    // 访问优先级：setupState → props → data → ctx → $内建 → app.config.globalProperties
     if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
       return setupState[key]
     } else if (props !== EMPTY_OBJ && hasOwn(props, key)) {
       return props[key]
+    } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
+      return data[key]
     } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
       return ctx[key]
     } else if (key === '$slots') {
@@ -50,10 +52,13 @@ export const PublicInstanceProxyHandlers: ProxyHandler<{ _: ComponentInternalIns
   },
 
   set({ _: instance }, key: string, value): boolean {
-    const { ctx, setupState } = instance
+    const { ctx, setupState, data } = instance
 
     if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
       setupState[key] = value
+      return true
+    } else if (data !== EMPTY_OBJ && hasOwn(data, key)) {
+      data[key] = value
       return true
     } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
       ctx[key] = value
@@ -61,10 +66,11 @@ export const PublicInstanceProxyHandlers: ProxyHandler<{ _: ComponentInternalIns
     return true
   },
 
-  has({ _: { setupState, props, ctx } }, key: string) {
+  has({ _: { setupState, props, ctx, data } }, key: string) {
     return (
       (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) ||
       (props !== EMPTY_OBJ && hasOwn(props, key)) ||
+      (data !== EMPTY_OBJ && hasOwn(data, key)) ||
       (ctx !== EMPTY_OBJ && hasOwn(ctx, key))
     )
   },

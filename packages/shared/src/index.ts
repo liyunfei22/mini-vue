@@ -113,10 +113,12 @@ export const isOn = (key: string): boolean =>
   // uppercase letter
   (key.charCodeAt(2) > 122 || key.charCodeAt(2) < 97)
 
-/**
- * 把值渲染成显示文本（插值表达式的输出协议）：
- *   null/undefined → ''；对象 → JSON.stringify；其它 → String
- */
+/** 宽松转数字：v-model.number 用（parseFloat NaN 时返回原值，与真 Vue 一致） */
+export const looseToNumber = (val: any): any => {
+  const n = parseFloat(val)
+  return isNaN(n) ? val : n
+}
+
 export const toDisplayString = (val: unknown): string => {
   return val == null
     ? ''

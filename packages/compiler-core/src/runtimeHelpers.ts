@@ -15,6 +15,7 @@ export const WITH_DIRECTIVES = Symbol('withDirectives')
 export const RESOLVE_COMPONENT = Symbol('resolveComponent')
 export const RESOLVE_DYNAMIC_COMPONENT = Symbol('resolveDynamicComponent')
 export const TO_HANDLER_KEY = Symbol('toHandlerKey')
+export const LOOSE_TO_NUMBER = Symbol('looseToNumber')
 export const V_MODEL_CHECKBOX = Symbol('vModelCheckbox')
 export const V_MODEL_RADIO = Symbol('vModelRadio')
 export const V_MODEL_SELECT = Symbol('vModelSelect')
@@ -36,6 +37,7 @@ export const helperNameMap: Record<symbol, string> = {
   [RESOLVE_COMPONENT]: 'resolveComponent',
   [RESOLVE_DYNAMIC_COMPONENT]: 'resolveDynamicComponent',
   [TO_HANDLER_KEY]: 'toHandlerKey',
+  [LOOSE_TO_NUMBER]: 'looseToNumber',
   [V_MODEL_CHECKBOX]: 'vModelCheckbox',
   [V_MODEL_RADIO]: 'vModelRadio',
   [V_MODEL_SELECT]: 'vModelSelect',
