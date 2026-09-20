@@ -20,8 +20,16 @@ const NATIVE_TAGS = new Set([
   'img', 'br', 'hr', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'form',
 ])
 
-export function resolveComponent(name: string, appContext: any): any {
-  const appComponents = appContext && appContext.components
+export function resolveComponent(name: string, appContext?: any): any {
+  // 1. 当前组件的局部 components 选项（<template><Child/></template> 场景）
+  const inst = getCurrentRenderingInstance()
+  if (inst && inst.type && inst.type.components) {
+    const local = inst.type.components[name]
+    if (local) return local
+  }
+  // 2. 应用级 app.component 注册表
+  const ctx = appContext || (inst && inst.appContext)
+  const appComponents = ctx && ctx.components
   if (appComponents && appComponents[name]) {
     return appComponents[name]
   }

@@ -22,7 +22,8 @@ export function renderSlot(
   if (slot) {
     // 函数插槽：把 scoped 数据传进去，得到 vnode 数组
     const slotContent = slot(props || {})
-    return normalizeVNode(slotContent)
+    // 单子节点不加 Fragment 锚点（与真 Vue 单插槽行为一致）
+    return normalizeVNode(slotContent.length === 1 ? slotContent[0] : slotContent)
   }
 
   // 没有这个插槽 → 渲染 fallback（如果编译期给了）

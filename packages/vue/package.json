@@ -1,0 +1,19 @@
+{
+  "name": "@mini-vue/vue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    }
+  },
+  "dependencies": {
+    "@mini-vue/runtime-dom": "workspace:*",
+    "@mini-vue/runtime-core": "workspace:*",
+    "@mini-vue/compiler-dom": "workspace:*",
+    "@mini-vue/compiler-core": "workspace:*",
+    "@mini-vue/shared": "workspace:*"
+  }
+}

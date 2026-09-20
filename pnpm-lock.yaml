@@ -21,6 +21,21 @@ importers:
         specifier: ^3.0.0
         version: 3.2.7(jsdom@30.1.0)(lightningcss@1.33.0)
 
+  packages/compiler-core:
+    dependencies:
+      '@mini-vue/shared':
+        specifier: workspace:*
+        version: link:../shared
+
+  packages/compiler-dom:
+    dependencies:
+      '@mini-vue/compiler-core':
+        specifier: workspace:*
+        version: link:../compiler-core
+      '@mini-vue/shared':
+        specifier: workspace:*
+        version: link:../shared
+
   packages/reactivity:
     dependencies:
       '@mini-vue/shared':
@@ -46,6 +61,24 @@ importers:
         version: link:../shared
 
   packages/shared: {}
+
+  packages/vue:
+    dependencies:
+      '@mini-vue/compiler-core':
+        specifier: workspace:*
+        version: link:../compiler-core
+      '@mini-vue/compiler-dom':
+        specifier: workspace:*
+        version: link:../compiler-dom
+      '@mini-vue/runtime-core':
+        specifier: workspace:*
+        version: link:../runtime-core
+      '@mini-vue/runtime-dom':
+        specifier: workspace:*
+        version: link:../runtime-dom
+      '@mini-vue/shared':
+        specifier: workspace:*
+        version: link:../shared
 
 packages:
 

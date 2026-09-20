@@ -113,6 +113,40 @@ export const isOn = (key: string): boolean =>
   // uppercase letter
   (key.charCodeAt(2) > 122 || key.charCodeAt(2) < 97)
 
+/**
+ * 把值渲染成显示文本（插值表达式的输出协议）：
+ *   null/undefined → ''；对象 → JSON.stringify；其它 → String
+ */
+export const toDisplayString = (val: unknown): string => {
+  return val == null
+    ? ''
+    : isObject(val)
+      ? JSON.stringify(val, replacer, 2)
+      : String(val)
+}
+
+const replacer = (_key: string, val: unknown) => {
+  if (isMap(val)) {
+    return {
+      [`Map(${val.size})`]: [...val.entries()].reduce(
+        (entries, [key, val2], i) => {
+          ;(entries as any)[`${i}`] = { key, value: val2 }
+          return entries
+        },
+        {},
+      ),
+    }
+  } else if (isSet(val)) {
+    return {
+      [`Set(${val.size})`]: [...val.values()],
+    }
+  } else if (isPlainObject(val)) {
+    return JSON.stringify(val, replacer, 2)
+  } else {
+    return val
+  }
+}
+
 /** 把字符串/数组/对象形式的 class 归一化成字符串 */
 export function normalizeClass(value: unknown): string {
   let res = ''

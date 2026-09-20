@@ -182,7 +182,8 @@ function baseCreateRenderer(options: RendererOptions) {
       n2.anchor = hostCreateComment('')
       hostInsert(n2.el, container, anchor)
       hostInsert(n2.anchor, container, anchor)
-      mountChildren(n2.children as any[], container, n2.anchor, parentComponent)
+      const fchildren = isArray(n2.children) ? n2.children : [n2.children as any]
+      mountChildren(fchildren, container, n2.anchor, parentComponent)
     } else {
       n2.el = n1.el
       n2.anchor = n1.anchor
@@ -222,7 +223,10 @@ function baseCreateRenderer(options: RendererOptions) {
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       hostSetElementText(el, vnode.children as string)
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-      mountChildren(vnode.children as any[], el, null, parentComponent)
+      // 编译路径 createElementVNode 对「单个 vnode children」只打 ARRAY 位不包数组
+      // → 统一归一：非数组包装成单元素数组（真 Vue 的 mountChildren 也吃单 vnode）
+      const children = isArray(vnode.children) ? vnode.children : [vnode.children as any]
+      mountChildren(children, el, null, parentComponent)
     }
 
     // 属性
@@ -305,11 +309,14 @@ function baseCreateRenderer(options: RendererOptions) {
       // 新 children 非文本
       if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
         if (nextShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          // 编译路径单 vnode children 只打 ARRAY 位不包数组 → 统一转数组（见 mountElement 注）
+          const prevArr = isArray(c1) ? c1 : [c1]
+          const nextArr = isArray(c2) ? c2 : [c2]
           // 数组 ↔ 数组 → 走 keyed diff
-          patchKeyedChildren(c1, c2, container, anchor, parentComponent)
+          patchKeyedChildren(prevArr, nextArr, container, anchor, parentComponent)
         } else {
-          // 数组 → 空：全卸载
-          unmountChildren(c1, parentComponent)
+          // 数组 → 空：全卸载（同样考虑单对象形状）
+          unmountChildren(isArray(c1) ? c1 : [c1], parentComponent)
         }
       } else {
         // 旧是文本（或空）：先清空再挂新

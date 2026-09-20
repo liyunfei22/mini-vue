@@ -7,10 +7,13 @@
  */
 export * from '@mini-vue/reactivity'
 
+export { toDisplayString } from '@mini-vue/shared'
+
 export { renderComponentRoot } from './componentRenderUtils'
 
 export {
   createVNode,
+  createElementVNode,
   cloneVNode,
   createTextVNode,
   createCommentVNode,
@@ -19,6 +22,7 @@ export {
   normalizeVNode,
   normalizeChildren,
   guardReactiveProps,
+  withDirectives,
   Fragment,
   Text,
   Comment,
@@ -90,7 +94,7 @@ export {
 } from './apiWatch'
 export type { WatchCallback, WatchOptions, WatchHandle, WatchSource } from './apiWatch'
 
-export { createAppAPI } from './apiCreateApp'
+export { createAppAPI, registerRuntimeCompiler } from './apiCreateApp'
 export type { App } from './apiCreateApp'
 
 export { renderSlot } from './helpers/renderSlot'
@@ -101,5 +105,7 @@ export {
   resolveDirective,
   isNativeTag,
 } from './helpers/resolveAssets'
+
+export { renderList } from './helpers/renderList'
 
 export { warn } from './warning'

@@ -37,7 +37,11 @@ export type ConcreteComponent = Record<string, any>
 
 export interface AppContext {
   app: any | null
-  config: { errorHandler?: (err: unknown, instance: any) => void; globalProperties: Record<string, any> }
+  config: {
+    errorHandler?: (err: unknown, instance: any) => void
+    globalProperties: Record<string, any>
+    compiler?: (template: string, options?: any) => any
+  }
   provides: Record<string | symbol, any>
   components: Record<string, any>
 }
@@ -228,8 +232,11 @@ function finishComponentSetup(instance: ComponentInternalInstance) {
     } else if (isFunction(Component)) {
       // 函数组件：整个函数就是 render
       instance.render = Component
+    } else if (Component.template && instance.appContext.config.compiler) {
+      // 模板字符串 → 运行时编译（@mini-vue/vue 注入的 compiler）
+      instance.render = instance.appContext.config.compiler(Component.template)
     } else {
-      // mini 无模板编译分支（阶段 5 引入 runtime 编译器）；连 render 都没有 → 渲染空占位
+      // 连 render 都没有 → 渲染空占位
       instance.render = () => null
     }
   }

@@ -95,7 +95,29 @@
 - reactive 当 source 默认深遍历；resolveDynamicComponent 传错变量(this→ctx)是本次真实踩坑；<br>
 - 自触发守卫：watch cb 允许递归（allowRecurse）。
 
-## 阶段 5 — 编译器闭环（○）
+## 阶段 5 — 编译器闭环（✓）
+
+**当前状态**：✅ 已完成（2026-09-20），review gate 通过
+
+**交付清单**
+- [x] `compiler-core`: ast / parse（状态机）/ transform（管线+父指针线程化）/ codegen（with(_ctx)+helpers 解构）/ compile
+- [x] transforms: transformIf(v-if/v-else)/transformFor/renderList/transformElement(buildProps+buildSlots)/transformText/v-model 内嵌
+- [x] `compiler-dom`: parserOptions(isNativeTag/voidTags) + compile
+- [x] `@mini-vue/vue` 聚合包：compileToFunction（new Function('Vue',code)）+ registerRuntimeCompiler（`template:` 选项可用）
+- [x] 测试：compiler.spec（结构）+ compileToFunction.spec（端到端 11 个）（**184 用例全绿**，tsc 0 错误）
+- [x] 中文文档：`docs/05-编译器-template-render闭环.md`
+
+**Review Gate 判断题**（答案见 docs/05 第 2 节）
+1. 手推 `<div v-for="x in xs"><span>{{x}}</span></div>` 的 transform 全路径
+2. v-else 与 v-if 靠什么数据结构建立逻辑链？
+3. helpers 如何从 transform 流到 codegen 产物的 import 头部？
+
+**本轮所学笔记**：
+- compiler = parse(状态机) → transform(结构化) → codegen(拼串)，产物 `with(_ctx)` 包裹；<br>
+- 结构指令「进入摘指令 + 退出移除元素」+ `node=currentNode` 跟替换；<br>
+- 编译路径 createElementVNode 单 vnode children 不包数组（板块挂载兜底）；组件标签必须走 createVNode；<br>
+- template#slot 的 slot 体 = 子节点；renderSlot 单子节点去 Fragment 锚点；<br>
+- 本阶段踩坑 7 个（正则空格/插值吞文本/closeIndex/else 时序/数组/组件/模板 slot）。
 
 ## 阶段 6 — v-model / slots / 全局 API（○）
 

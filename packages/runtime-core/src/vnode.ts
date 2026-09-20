@@ -295,3 +295,30 @@ export function normalizeVNode(child: VNodeChild): VNode {
 export function isVNodeArrayChildren(v: unknown): v is VNodeArrayChildren {
   return isArray(v) && (v.length === 0 || isVNode(v[0]))
 }
+
+/**
+ * withDirectives —— 把运行时指令列表挂到 vnode 上（编译器 v-model/v-show 等输出）。
+ * 对应真 Vue vnode.ts 的 withDirectives；渲染器在生命周期钩子处调用 invokeDirectiveHook
+ * （阶段 6 接入完整指令生命周期）。
+ */
+export function withDirectives<T extends VNode>(vnode: T, directives: any[]): T {
+  const instance = currentRenderingInstance
+  const bindings: any = (vnode.dirs || (vnode.dirs = []))
+  for (let i = 0; i < directives.length; i++) {
+    const [dir, value, arg, modifiers] = directives[i]
+    if (dir) {
+      bindings.push({
+        dir,
+        instance: instance && (instance.proxy || null),
+        value,
+        oldValue: void 0,
+        arg,
+        modifiers,
+      })
+    }
+  }
+  return vnode
+}
+
+import { currentRenderingInstance } from './componentRenderContext'
+export { createBaseVNode as createElementVNode }

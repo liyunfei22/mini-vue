@@ -18,6 +18,18 @@ import { EMPTY_OBJ } from '@mini-vue/shared'
 import type { AppContext, Data } from './component'
 import type { VNode } from './vnode'
 
+/**
+ * 运行时编译器注册表：@mini-vue/vue 聚合包把 compileToFunction 注入进来，
+ * 组件 `template: "..."` 选项由此编译成渲染函数（runtime-core 不直接依赖 compiler）。
+ */
+let runtimeCompiler: ((template: string, options?: any) => any) | undefined
+export function registerRuntimeCompiler(fn: (template: string, options?: any) => any) {
+  runtimeCompiler = fn
+}
+export function getRuntimeCompiler() {
+  return runtimeCompiler
+}
+
 export interface App<HostElement = any> {
   _component: any
   _props: any
@@ -103,7 +115,7 @@ export function createAppAPI<HostElement>(
 function createContext(): AppContext {
   return {
     app: null as any,
-    config: { errorHandler: undefined, globalProperties: {} as Data },
+    config: { errorHandler: undefined, globalProperties: {} as Data, compiler: getRuntimeCompiler() },
     provides: Object.create(null),
     components: {},
   }

@@ -1,0 +1,43 @@
+/**
+ * runtimeHelpers.ts —— 编译器产物依赖的运行时助手常量
+ *
+ * 对应真 Vue packages/compiler-core/src/runtimeHelpers.ts。
+ * codegen 阶段「import { helperName as _helperName } from 'Vue'」的信息来源；
+ * 编译器不知道运行时长什么样，只用这么多 ID 与名字 —— 运行时补齐同名函数即可。
+ */
+export const TO_DISPLAY_STRING = Symbol('toDisplayString')
+export const CREATE_ELEMENT_VNODE = Symbol('createElementVNode')
+export const CREATE_TEXT_VNODE = Symbol('createTextVNode')
+export const CREATE_COMMENT = Symbol('createCommentVNode')
+export const RENDER_LIST = Symbol('renderList')
+export const RENDER_SLOT = Symbol('renderSlot')
+export const WITH_DIRECTIVES = Symbol('withDirectives')
+export const RESOLVE_COMPONENT = Symbol('resolveComponent')
+export const RESOLVE_DYNAMIC_COMPONENT = Symbol('resolveDynamicComponent')
+export const TO_HANDLER_KEY = Symbol('toHandlerKey')
+export const SET_BLOCK_TRACKING = Symbol('setBlockTracking')
+export const OPEN_BLOCK = Symbol('openBlock')
+export const CREATE_BLOCK = Symbol('createBlock')
+export const CREATE_VNODE = Symbol('createVNode')
+export const HYDRATE_ELEMENT = Symbol('hydrateElement')
+
+export const helperNameMap: Record<symbol, string> = {
+  [TO_DISPLAY_STRING]: 'toDisplayString',
+  [CREATE_ELEMENT_VNODE]: 'createElementVNode',
+  [CREATE_TEXT_VNODE]: 'createTextVNode',
+  [CREATE_COMMENT]: 'createCommentVNode',
+  [RENDER_LIST]: 'renderList',
+  [RENDER_SLOT]: 'renderSlot',
+  [WITH_DIRECTIVES]: 'withDirectives',
+  [RESOLVE_COMPONENT]: 'resolveComponent',
+  [RESOLVE_DYNAMIC_COMPONENT]: 'resolveDynamicComponent',
+  [TO_HANDLER_KEY]: 'toHandlerKey',
+  [CREATE_VNODE]: 'createVNode',
+}
+
+/** 设置已使用 helpers 的调试名（devtools/测试断言用） */
+export function registerRuntimeHelpers(helpers: Record<string, symbol>) {
+  for (const name in helpers) {
+    helperNameMap[helpers[name]] = name
+  }
+}
