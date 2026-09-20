@@ -11,22 +11,21 @@
  */
 import { normalizeVNode, type VNode } from './vnode'
 import { callWithErrorHandling, ErrorCodes } from './errorHandling'
+import { getCurrentRenderingInstance, setCurrentRenderingInstance } from './componentRenderContext'
 import type { ComponentInternalInstance } from './component'
 
 export function renderComponentRoot(instance: ComponentInternalInstance): VNode {
   const { proxy, render } = instance
 
   let result
+  // 渲染期间维护「当前渲染中的组件」：编译助手（resolveDynamicComponent 等）据此
+  // 查找 appContext/scopeId，与真 Vue 的 currentRenderingInstance 语义一致
+  const prev = getCurrentRenderingInstance()
+  setCurrentRenderingInstance(instance)
   try {
-    result = callWithErrorHandling(
-      render!,
-      instance,
-      ErrorCodes.RENDER_FUNCTION,
-      [proxy],
-    )
+    result = callWithErrorHandling(render!, instance, ErrorCodes.RENDER_FUNCTION, [proxy])
   } finally {
-    // 渲染期间如果用到「当前组件上下文」的 API（如 useSlots），
-    // 真 Vue 会在这里维护 currentRenderingInstance；mini 通过 proxy 直读已有字段，暂不需要。
+    setCurrentRenderingInstance(prev)
   }
 
   return normalizeVNode(result)

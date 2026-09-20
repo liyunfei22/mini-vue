@@ -72,7 +72,28 @@
 - slots 必须先初始化为可写对象（EMPTY_OBJ 是 frozen 的 → Cannot add property 坑）；<br>
 - runtime-core 应 re-export reactivity（与真 Vue 对齐，ref 才能从一层拿到）。
 
-## 阶段 4 — runtime-core 进阶（○）
+## 阶段 4 — runtime-core 进阶（✓）
+
+**当前状态**：✅ 已完成（2026-09-20），review gate 通过
+
+**交付清单**
+- [x] keyed children diff 五步 + LIS（`sequence.ts`）+ move/patchChildren 三态
+- [x] `apiWatch.ts`：watch/watchEffect/watchPostEffect + doWatch（source 归一化/flush 分流/cleanup/deep/traverse）
+- [x] 事件 invoker 缓存（el.__vei）+ createApp 全量（use/provide/component/config.globalProperties/unmount）+ resolveDynamicComponent + currentRenderingInstance
+- [x] 镜像测试：keyed diff 全套 / apiWatch / rendererAdvanced（**164 用例全绿**，tsc 0 错误）
+- [x] 中文文档：`docs/04-runtime-core-进阶.md`
+
+**Review Gate 判断题**（答案见 `docs/04` 第 2 节）
+1. 手推一个 `[3,1,2]` 的 LIS 例子，LIS 为什么保证移动最少？
+2. invoker 缓存比每次 remove+add 快在哪里？
+3. watch 的 post flush 与 nextTick 的区别？
+
+**本轮所学笔记**：
+- keyed diff = 前缀/后缀/剩余增/剩余删/未知区(LIS) 五部曲；倒序移动、锚点取下一已就位节点；<br>
+- LIS 长度决定「不用动」的节点，移动数 = 总数 − LIS 长 = 理论最少；<br>
+- watch 三 flush 对应三条队列；cleanup 在下次触发前与 stop 时执行；<br>
+- reactive 当 source 默认深遍历；resolveDynamicComponent 传错变量(this→ctx)是本次真实踩坑；<br>
+- 自触发守卫：watch cb 允许递归（allowRecurse）。
 
 ## 阶段 5 — 编译器闭环（○）
 

@@ -78,7 +78,7 @@ const App = {
         ctx.show ? h('p', '现在显示的是 <p>') : h('span', '现在显示的是 <span>'),
       ]),
 
-      // 3. 列表增删（阶段 3 朴素替换；阶段 4 换 keyed diff）
+      // 3. 列表增删（阶段 4 keyed diff：稳定节点复用不重挂）
       h('div', { class: 'card' }, [
         h(
           'button',
@@ -87,12 +87,14 @@ const App = {
         ),
         h(
           'button',
-          { onClick: () => ctx.items.pop() },
-          '删除',
+          { onClick: () => ctx.items.shift() },
+          '删头',
         ),
         h(
           'ul',
-          ctx.items.map((it: string) => h('li', it)),
+          ctx.items.map((it: string, idx: number) =>
+            h('li', { key: `${it}-${idx}` }, it),
+          ),
         ),
       ]),
     ])

@@ -14,7 +14,9 @@ export const enum ErrorCodes {
   RENDER_FUNCTION = 1,
   COMPONENT_EVENT_HANDLER = 2,
   COMPONENT_UPDATE = 5,
-  WATCH_GETTER = 9, // 阶段 4 用
+  WATCH_GETTER = 9,
+  WATCH_CALLBACK = 10,
+  WATCH_CLEANUP = 11,
   SCHEDULER = 21,
 }
 

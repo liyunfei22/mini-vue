@@ -10,7 +10,10 @@
  *   剩下的        → 能作为 DOM property 就赋值（value/checked/selected…），
  *                   否则 setAttribute
  */
-import { isOn, normalizeClass, normalizeStyle, toHandlerKey } from '@mini-vue/shared'
+import { isArray, isOn, normalizeClass, normalizeStyle, toHandlerKey } from '@mini-vue/shared'
+
+/** vei = vue event invokers：缓存在元素上的事件调用器表 */
+const veiKey = '__vei'
 
 const domPropsRE = /[A-Z]|^(value|checked|selected|muted|disabled)$/
 
@@ -82,20 +85,58 @@ function patchStyle(el: Element, prev: any, next: any) {
   }
 }
 
-// ---- 事件（阶段 3 朴素版） ----
+// ---- 事件（阶段 4：invoker 缓存） ----
 
-function patchEvent(el: Element, rawName: string, prevValue: unknown, nextValue: unknown) {
-  // 手写 add/remove —— 阶段 4 会换成 invoker 缓存（el._vei）
-  if (nextValue) {
-    const eventName = rawName.slice(2).toLowerCase()
-    if (prevValue) {
-      el.removeEventListener(eventName, prevValue as any)
+/**
+ * invoker 机制：每个事件名只 addEventListener 一次，之后更新 handler 只改
+ * invoker.value。避免「每次 patch 都 remove + add」（阶段 3 朴素版的短板）。
+ *   首次绑定：el.__vei[rawName] = createInvoker(handler) → addEventListener(el, name, invoker)
+ *   更新     ：existingInvoker.value = newHandler（零 DOM 操作）
+ *   移除     ：removeEventListener + 表里置空
+ */
+function patchEvent(el: any, rawName: string, _prevValue: unknown, nextValue: unknown) {
+  const invokers = el[veiKey] || (el[veiKey] = {})
+  const existingInvoker = invokers[rawName]
+
+  if (nextValue && existingInvoker) {
+    // patch：只换值
+    existingInvoker.value = nextValue
+  } else {
+    const name = parseName(rawName)
+    if (nextValue) {
+      // add
+      const invoker = (invokers[rawName] = createInvoker(nextValue))
+      el.addEventListener(name, invoker)
+    } else if (existingInvoker) {
+      // remove
+      el.removeEventListener(name, existingInvoker)
+      invokers[rawName] = undefined
     }
-    el.addEventListener(eventName, nextValue as any)
-  } else if (prevValue) {
-    const eventName = rawName.slice(2).toLowerCase()
-    el.removeEventListener(eventName, prevValue as any)
   }
+}
+
+function createInvoker(initialValue: unknown) {
+  const invoker: any = (e: Event) => {
+    // handler 每次 patch 时会更新到 invoker.value 上，调用时永远是最新版
+    const value = invoker.value
+    if (isArray(value)) {
+      for (let i = 0; i < value.length; i++) {
+        const handler = value[i]
+        if (handler) handler(e)
+      }
+    } else if (value) {
+      value(e)
+    }
+  }
+  invoker.value = initialValue
+  return invoker
+}
+
+/** onUpdate:xxx / onClick / on-click → 真实事件名 */
+function parseName(rawName: string): string {
+  // 自定义组件事件（onUpdate:value）在 DOM 层会落到 update:value 事件——
+  // 这里 mini 简化：统一按 onXxx → x 小写（DOM 原生事件都是小写英文）
+  return rawName.slice(2).toLowerCase()
 }
 
 // ---- 决定走 property 还是 attribute ----

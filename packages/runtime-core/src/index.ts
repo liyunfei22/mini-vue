@@ -81,9 +81,25 @@ export {
   ErrorCodes,
 } from './errorHandling'
 
+export {
+  watch,
+  watchEffect,
+  watchPostEffect,
+  watchSyncEffect,
+  traverse,
+} from './apiWatch'
+export type { WatchCallback, WatchOptions, WatchHandle, WatchSource } from './apiWatch'
+
 export { createAppAPI } from './apiCreateApp'
 export type { App } from './apiCreateApp'
 
 export { renderSlot } from './helpers/renderSlot'
+
+export {
+  resolveComponent,
+  resolveDynamicComponent,
+  resolveDirective,
+  isNativeTag,
+} from './helpers/resolveAssets'
 
 export { warn } from './warning'

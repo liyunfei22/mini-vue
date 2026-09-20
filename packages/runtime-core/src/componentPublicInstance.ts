@@ -24,13 +24,18 @@ export const PublicInstanceProxyHandlers: ProxyHandler<{ _: ComponentInternalIns
       return true
     }
 
-    // 访问优先级：setupState → props → ctx
+    // 访问优先级：setupState → props → ctx → app.config.globalProperties
     if (setupState !== EMPTY_OBJ && hasOwn(setupState, key)) {
       return setupState[key]
     } else if (props !== EMPTY_OBJ && hasOwn(props, key)) {
       return props[key]
     } else if (ctx !== EMPTY_OBJ && hasOwn(ctx, key)) {
       return ctx[key]
+    } else if (instance.appContext && instance.appContext.config.globalProperties) {
+      const globalProps = instance.appContext.config.globalProperties
+      if (hasOwn(globalProps, key)) {
+        return globalProps[key]
+      }
     }
 
     return undefined

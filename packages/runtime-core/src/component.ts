@@ -37,7 +37,7 @@ export type ConcreteComponent = Record<string, any>
 
 export interface AppContext {
   app: any | null
-  config: { errorHandler?: (err: unknown, instance: any) => void }
+  config: { errorHandler?: (err: unknown, instance: any) => void; globalProperties: Record<string, any> }
   provides: Record<string | symbol, any>
   components: Record<string, any>
 }
@@ -103,7 +103,7 @@ export type SetupContext = {
 export function createAppContext(): AppContext {
   return {
     app: null,
-    config: { errorHandler: undefined },
+    config: { errorHandler: undefined, globalProperties: {} },
     provides: Object.create(null),
     components: {},
   }

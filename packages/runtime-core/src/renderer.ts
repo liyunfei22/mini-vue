@@ -25,13 +25,14 @@
  *   - 事件监听用朴素 add/remove（不做 invoker 缓存）
  *   - 无 keepAlive/teleport/suspense/transition
  */
-import { EMPTY_OBJ, isArray, ShapeFlags } from '@mini-vue/shared'
+import { EMPTY_ARR, EMPTY_OBJ, isArray, ShapeFlags } from '@mini-vue/shared'
 import { effect } from '@mini-vue/reactivity'
 import { createComponentInstance, setupComponent } from './component'
 import { renderComponentRoot } from './componentRenderUtils'
 import { queueJob, queuePostFlushCb } from './scheduler'
 import { updateSlots } from './componentSlots'
 import { Text, Comment, Fragment, isSameVNodeType, normalizeVNode } from './vnode'
+import { getSequence } from './sequence'
 import { createAppAPI } from './apiCreateApp'
 import type { ComponentInternalInstance, Data } from './component'
 import type { VNode } from './vnode'
@@ -276,8 +277,9 @@ function baseCreateRenderer(options: RendererOptions) {
   }
 
   /**
-   * children diff —— 阶段 3 简化：全量重建。
-   * （阶段 4 会替换为真正的 keyed diff + LIS）
+   * children diff —— 阶段 4：按「文本/数组/其他」三态分流
+   *   文本↔文本 → setText；数组↔数组 → keyed diff（patchKeyedChildren）；
+   *   其余 → 卸载旧 + 挂载新
    */
   function patchChildren(
     n1: VNode,
@@ -286,24 +288,212 @@ function baseCreateRenderer(options: RendererOptions) {
     anchor: any,
     parentComponent: ComponentInternalInstance | null,
   ) {
-    const c1 = n1.children
-    const c2 = n2.children
+    const c1 = n1.children as any
+    const c2 = n2.children as any
+    const prevShapeFlag = n1.shapeFlag
+    const nextShapeFlag = n2.shapeFlag
 
-    // 旧子树卸载
-    if (isArray(c1)) {
-      for (let i = 0; i < (c1 as any[]).length; i++) {
-        unmount((c1 as any[])[i] as VNode, parentComponent)
+    // 新 children 是文本：全部替换成文本
+    if (nextShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        unmountChildren(c1, parentComponent)
       }
-    }
-
-    // 新子树挂载
-    if (isArray(c2)) {
-      mountChildren(c2 as any[], container, anchor, parentComponent)
-    } else if (typeof c2 === 'string') {
-      if (c1 !== c2) {
+      if (c2 !== c1) {
         hostSetElementText(container, c2)
       }
+    } else {
+      // 新 children 非文本
+      if (prevShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+        if (nextShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          // 数组 ↔ 数组 → 走 keyed diff
+          patchKeyedChildren(c1, c2, container, anchor, parentComponent)
+        } else {
+          // 数组 → 空：全卸载
+          unmountChildren(c1, parentComponent)
+        }
+      } else {
+        // 旧是文本（或空）：先清空再挂新
+        if (prevShapeFlag & ShapeFlags.TEXT_CHILDREN) {
+          hostSetElementText(container, '')
+        }
+        if (nextShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
+          mountChildren(c2, container, anchor, parentComponent)
+        }
+      }
     }
+  }
+
+  function unmountChildren(children: any[], parentComponent: ComponentInternalInstance | null) {
+    for (let i = 0; i < children.length; i++) {
+      unmount(children[i] as VNode, parentComponent)
+    }
+  }
+
+  /**
+   * keyed children —— 真 Vue 的五步算法：
+   *   1. 从头同步（前缀相同节点直接 patch）
+   *   2. 从尾同步（后缀相同节点直接 patch）
+   *   3. 若「全在尾部新增」→ 顺序挂载锚点之前
+   *   4. 若「尾部被删」→ 批量卸载
+   *   5. 中间未知区：键表 keyToNewIndexMap + 新老映射 newIndexToOldIndexMap
+   *      → moved 判定 → LIS 找出不动节点 → 从后往前移动/挂载
+   * 详细图解见 docs/04。
+   */
+  function patchKeyedChildren(
+    c1: VNode[],
+    c2: any[],
+    container: any,
+    parentAnchor: any,
+    parentComponent: ComponentInternalInstance | null,
+  ) {
+    let i = 0
+    const l2 = c2.length
+    let e1 = c1.length - 1
+    let e2 = l2 - 1
+
+    // 1. 同步前缀：左右开头的同型节点直接 patch
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[i]
+      const n2 = (c2[i] = normalizeVNode(c2[i]))
+      if (isSameVNodeType(n1, n2)) {
+        patch(n1, n2, container, null, parentComponent)
+      } else {
+        break
+      }
+      i++
+    }
+
+    // 2. 同步后缀
+    while (i <= e1 && i <= e2) {
+      const n1 = c1[e1]
+      const n2 = (c2[e2] = normalizeVNode(c2[e2]))
+      if (isSameVNodeType(n1, n2)) {
+        patch(n1, n2, container, null, parentComponent)
+      } else {
+        break
+      }
+      e1--
+      e2--
+    }
+
+    // 3. 旧节点耗尽：剩余的(新)全是新增 → 挂载
+    if (i > e1) {
+      if (i <= e2) {
+        const nextPos = e2 + 1
+        const anchor = nextPos < l2 ? (c2[nextPos] as VNode).el : parentAnchor
+        while (i <= e2) {
+          patch(null, (c2[i] = normalizeVNode(c2[i])), container, anchor, parentComponent)
+          i++
+        }
+      }
+    }
+    // 4. 新节点耗尽：剩余(旧)全是删除 → 卸载
+    else if (i > e2) {
+      while (i <= e1) {
+        unmount(c1[i], parentComponent)
+        i++
+      }
+    }
+    // 5. 中间未知区（乱序）
+    else {
+      const s1 = i
+      const s2 = i
+
+      // 5.1 新 children 的 key → 新下标 映射表
+      const keyToNewIndexMap: Map<any, number> = new Map()
+      for (i = s2; i <= e2; i++) {
+        const nextChild = (c2[i] = normalizeVNode(c2[i]))
+        if (nextChild.key != null) {
+          keyToNewIndexMap.set(nextChild.key, i)
+        }
+      }
+
+      // 5.2 遍历旧 children：用 key 或「同型无 key」对新下标
+      let j
+      let patched = 0
+      const toBePatched = e2 - s2 + 1
+      let moved = false
+      let maxNewIndexSoFar = 0
+      // newIndexToOldIndexMap[newIndex-s2] = oldIndex+1（+1 是为了 0 表示“新节点”）
+      const newIndexToOldIndexMap = new Array(toBePatched)
+      for (i = 0; i < toBePatched; i++) newIndexToOldIndexMap[i] = 0
+
+      for (i = s1; i <= e1; i++) {
+        const prevChild = c1[i]
+        if (patched >= toBePatched) {
+          // 新节点全 patch 完了，剩下的旧节点只能删除
+          unmount(prevChild, parentComponent)
+          continue
+        }
+        let newIndex
+        if (prevChild.key != null) {
+          newIndex = keyToNewIndexMap.get(prevChild.key)
+        } else {
+          // 无 key：在新区里找一个「同型且还没被占位」的
+          for (j = s2; j <= e2; j++) {
+            if (newIndexToOldIndexMap[j - s2] === 0 && isSameVNodeType(prevChild, c2[j])) {
+              newIndex = j
+              break
+            }
+          }
+        }
+        if (newIndex === undefined) {
+          unmount(prevChild, parentComponent)
+        } else {
+          newIndexToOldIndexMap[newIndex - s2] = i + 1
+          if (newIndex >= maxNewIndexSoFar) {
+            maxNewIndexSoFar = newIndex
+          } else {
+            moved = true
+          }
+          patch(prevChild, c2[newIndex] as VNode, container, null, parentComponent)
+          patched++
+        }
+      }
+
+      // 5.3 移动 + 挂载：只有 moved 才算 LIS；从后往前，用「后一个已就位的节点」当锚点
+      const increasingNewIndexSequence = moved ? getSequence(newIndexToOldIndexMap) : EMPTY_ARR
+      j = increasingNewIndexSequence.length - 1
+      for (i = toBePatched - 1; i >= 0; i--) {
+        const nextIndex = s2 + i
+        const nextChild = c2[nextIndex] as VNode
+        const anchor = nextIndex + 1 < l2 ? (c2[nextIndex + 1] as VNode).el : parentAnchor
+
+        if (newIndexToOldIndexMap[i] === 0) {
+          // 新节点 → 挂载
+          patch(null, nextChild, container, anchor, parentComponent)
+        } else if (moved) {
+          // 不在 LIS 里的节点才需要移动
+          if (j < 0 || i !== increasingNewIndexSequence[j]) {
+            move(nextChild, container, anchor)
+          } else {
+            j--
+          }
+        }
+      }
+    }
+  }
+
+  /** 把一个已挂载的节点（可能跨组件递归到其根）在 container 里移动到 anchor 前 */
+  function move(vnode: VNode, container: any, anchor: any) {
+    const { type, shapeFlag } = vnode
+    if (shapeFlag & ShapeFlags.COMPONENT) {
+      move(vnode.component!.subTree, container, anchor)
+      return
+    }
+    if (type === Fragment) {
+      hostInsert(vnode.el!, container, anchor)
+      const children = vnode.children
+      if (isArray(children)) {
+        for (let i = 0; i < (children as any[]).length; i++) {
+          move(children[i] as VNode, container, anchor)
+        }
+      }
+      hostInsert(vnode.anchor!, container, anchor)
+      return
+    }
+    // 单节点
+    hostInsert(vnode.el!, container, anchor)
   }
 
   // -------------------------------------------------------------

@@ -14,8 +14,8 @@
  */
 import { createVNode } from './vnode'
 import { warn } from './warning'
-import type { AppContext } from './component'
-import type { ComponentInternalInstance } from './component'
+import { EMPTY_OBJ } from '@mini-vue/shared'
+import type { AppContext, Data } from './component'
 import type { VNode } from './vnode'
 
 export interface App<HostElement = any> {
@@ -23,6 +23,7 @@ export interface App<HostElement = any> {
   _props: any
   _container: HostElement | null
   _context: AppContext
+  config: AppContext['config']
   mount(rootContainer: HostElement): any
   unmount(): void
   provide(key: string | symbol, value: unknown): App
@@ -42,6 +43,8 @@ export function createAppAPI<HostElement>(
       _props: rootProps,
       _container: null,
       _context: context,
+      // 暴露 app.config（globalProperties / errorHandler 的入口）
+      config: context.config,
 
       provide(key: string | symbol, value: unknown) {
         context.provides[key] = value
@@ -100,10 +103,11 @@ export function createAppAPI<HostElement>(
 function createContext(): AppContext {
   return {
     app: null as any,
-    config: { errorHandler: undefined },
+    config: { errorHandler: undefined, globalProperties: {} as Data },
     provides: Object.create(null),
     components: {},
   }
 }
 
 export const __DEV__ = true
+export { EMPTY_OBJ }
