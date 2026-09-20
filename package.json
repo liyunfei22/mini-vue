@@ -1,0 +1,16 @@
+{
+  "name": "mini-vue",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "从零手写 Vue3 全家桶：mini-vue / mini-vue-router / mini-pinia（学习项目）",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "node scripts/check-self-containment.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.0",
+    "vitest": "^3.0.0"
+  }
+}

@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+.idea/
+.vscode/
+
+# 真源码副本（仅本地阅读，不入库）
+third_party/*/
+
+# vitest 缓存
+.vitest/
