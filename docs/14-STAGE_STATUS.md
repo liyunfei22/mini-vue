@@ -119,7 +119,27 @@
 - template#slot 的 slot 体 = 子节点；renderSlot 单子节点去 Fragment 锚点；<br>
 - 本阶段踩坑 7 个（正则空格/插值吞文本/closeIndex/else 时序/数组/组件/模板 slot）。
 
-## 阶段 6 — v-model / slots / 全局 API（○）
+## 阶段 6 — v-model 指令 / 全局 API（✓）
+
+**当前状态**：✅ 已完成（2026-09-20），review gate 通过
+
+**交付清单**
+- [x] runtime-dom 指令：vModelCheckbox/Radio/Select（`_assigning` 防重入）+ vShow
+- [x] renderer 指令钩子：invokeDirectiveHook（created→mounted / updated / unmounted）
+- [x] 编译器：v-model 按 type 分流（text 内联 / checkbox/radio/select 指令化）+ v-show
+- [x] defineComponent / useSlots / useAttrs 公开导出
+- [x] 测试：v-model 各形态 / v-show / 自定义指令 / useSlots（**191 用例全绿**）
+- [x] 中文文档：`docs/06-v-model指令与全局API.md`
+
+**Review Gate 判断题**（答案见 docs/06 第 2 节）
+1. v-model 指令对象在编译产物里长什么样（withDirectives 四元组）？
+2. scoped slot 的"父传函数"与 renderSlot 的对应关系？
+3. globalProperties 与组件同名字段谁优先？
+
+**本轮所学笔记**：
+- v-model 双路线：文本内联 / 复选-单选-下拉走运行时指令（_assigning 防重入）；<br>
+- 指令钩子时机：created→mounted / updated / unmounted；自定义指令驱动测试全套过；<br>
+- public this 查找链含 $slots/$attrs/$emit/$props + globalProperties 兜底。
 
 ## 阶段 7 — mini-vue-router（○）
 

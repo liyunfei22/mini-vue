@@ -30,3 +30,5 @@ export const render = (vnode: any, container: any) => {
 
 export * from '@mini-vue/runtime-core'
 export { nodeOps, patchProp }
+export { vModelCheckbox, vModelRadio, vModelSelect } from './directives/vModel'
+export { vShow } from './directives/vShow'

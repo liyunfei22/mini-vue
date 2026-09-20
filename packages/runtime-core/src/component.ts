@@ -104,6 +104,14 @@ export type SetupContext = {
   expose: (exposed: Record<string, any>) => void
 }
 
+/**
+ * defineComponent —— 类型层面的组件定义助手（mini 恒等包装）。
+ * 真 Vue 在此协调 TS 类型推导（props/emits/slots 泛型），运行期原样返回。
+ */
+export function defineComponent(options: Record<string, any>) {
+  return options
+}
+
 export function createAppContext(): AppContext {
   return {
     app: null,

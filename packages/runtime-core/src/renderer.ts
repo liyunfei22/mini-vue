@@ -239,6 +239,9 @@ function baseCreateRenderer(options: RendererOptions) {
     }
 
     hostInsert(el, container, anchor)
+
+    // 指令 mounted 钩子（v-model/v-show 等）
+    invokeDirectiveHook(vnode, null, parentComponent, 'mounted')
   }
 
   function mountChildren(
@@ -278,6 +281,9 @@ function baseCreateRenderer(options: RendererOptions) {
     }
 
     patchChildren(n1, n2, el, null, parentComponent)
+
+    // 指令 updated 钩子（beforeUpdate 在 patchChildren 前触发更贴合语义，mini 简化到 updated）
+    invokeDirectiveHook(n2, n1, parentComponent, 'updated')
   }
 
   /**
@@ -663,6 +669,8 @@ function baseCreateRenderer(options: RendererOptions) {
         unmountFragment(vnode, parentComponent)
       } else {
         if (doRemove) {
+          // 指令 unmounted 钩子
+          invokeDirectiveHook(vnode, null, parentComponent, 'unmounted')
           hostRemove(vnode.el)
         }
       }
@@ -675,6 +683,7 @@ function baseCreateRenderer(options: RendererOptions) {
   ) {
     // beforeUnmount 钩子（unmounted 走 post flush）
     invokeHooks(instance, 'bum')
+    void 0
     // 停止实例 scope：连带停掉 setup 期创建的 effect/computed
     instance.scope.stop()
 
@@ -697,6 +706,39 @@ function baseCreateRenderer(options: RendererOptions) {
     }
     if (vnode.el) hostRemove(vnode.el)
     if (vnode.anchor) hostRemove(vnode.anchor)
+  }
+
+  // -------------------------------------------------------------
+  // 指令钩子（v-model/v-show 的运行时生命周期）
+  // -------------------------------------------------------------
+
+  type DirectiveHookName = 'created' | 'mounted' | 'beforeUpdate' | 'updated' | 'beforeUnmount' | 'unmounted'
+
+  function invokeDirectiveHook(
+    vnode: VNode,
+    prevVNode: VNode | null,
+    parentComponent: ComponentInternalInstance | null,
+    type: DirectiveHookName,
+  ) {
+    const bindings = vnode.dirs as any[] | undefined
+    const oldBindings = prevVNode && (prevVNode.dirs as any[] | undefined)
+    if (bindings) {
+      for (let i = 0; i < bindings.length; i++) {
+        const binding = bindings[i]
+        if (type === 'mounted' && binding.dir.created) {
+          // created 在挂载前执行（指令自身建监听/初值，v-model 靠它 addEventListener）
+          binding.dir.created(binding.el || vnode.el, binding, vnode)
+        }
+        const hook = binding.dir[type]
+        if (hook) {
+          // 更新类钩子要带 oldValue
+          if (type === 'beforeUpdate' || type === 'updated') {
+            binding.oldValue = oldBindings && oldBindings[i] ? oldBindings[i].value : undefined
+          }
+          hook(binding.el || vnode.el, binding, vnode, prevVNode)
+        }
+      }
+    }
   }
 
   // -------------------------------------------------------------

@@ -61,6 +61,9 @@ export {
   unsetCurrentInstance,
 } from './currentInstance'
 
+export { defineComponent } from './component'
+export { useSlots, useAttrs } from './apiUseSlots'
+
 export {
   onBeforeMount,
   onMounted,

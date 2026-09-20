@@ -15,6 +15,10 @@ export const WITH_DIRECTIVES = Symbol('withDirectives')
 export const RESOLVE_COMPONENT = Symbol('resolveComponent')
 export const RESOLVE_DYNAMIC_COMPONENT = Symbol('resolveDynamicComponent')
 export const TO_HANDLER_KEY = Symbol('toHandlerKey')
+export const V_MODEL_CHECKBOX = Symbol('vModelCheckbox')
+export const V_MODEL_RADIO = Symbol('vModelRadio')
+export const V_MODEL_SELECT = Symbol('vModelSelect')
+export const V_SHOW = Symbol('vShow')
 export const SET_BLOCK_TRACKING = Symbol('setBlockTracking')
 export const OPEN_BLOCK = Symbol('openBlock')
 export const CREATE_BLOCK = Symbol('createBlock')
@@ -32,6 +36,10 @@ export const helperNameMap: Record<symbol, string> = {
   [RESOLVE_COMPONENT]: 'resolveComponent',
   [RESOLVE_DYNAMIC_COMPONENT]: 'resolveDynamicComponent',
   [TO_HANDLER_KEY]: 'toHandlerKey',
+  [V_MODEL_CHECKBOX]: 'vModelCheckbox',
+  [V_MODEL_RADIO]: 'vModelRadio',
+  [V_MODEL_SELECT]: 'vModelSelect',
+  [V_SHOW]: 'vShow',
   [CREATE_VNODE]: 'createVNode',
 }
 
