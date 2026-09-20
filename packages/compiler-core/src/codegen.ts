@@ -344,6 +344,12 @@ function genIf(node: IfNode, context: CodegenContext) {
     context.push(` : `)
     genIfBranch(node.branches[i], context)
   }
+  // 最后一个分支若还有 condition（即没有裸 <template v-else>）→ 补注释兜底：
+  // `(cond) ? X : _createCommentVNode("v-if", true)`（真 Vue 同款）
+  const last = node.branches[node.branches.length - 1]
+  if (last.condition) {
+    context.push(` : ${context.helper(CREATE_COMMENT)}("v-if", true)`)
+  }
 }
 
 function genIfBranch(branch: IfBranchNode, context: CodegenContext) {

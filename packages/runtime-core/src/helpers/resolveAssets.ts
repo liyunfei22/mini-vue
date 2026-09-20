@@ -12,6 +12,11 @@
 import { isObject, isString } from '@mini-vue/shared'
 import { createVNode, Comment, type VNode } from '../vnode'
 import { getCurrentRenderingInstance } from '../componentRenderContext'
+import { Transition } from '../components/Transition'
+import { KeepAlive } from '../components/KeepAlive'
+
+/** 内建组件（模板里可直接写 <Transition>/<KeepAlive>，无需注册） */
+const BUILTIN_COMPONENTS: Record<string, any> = { Transition, KeepAlive }
 
 /** 原生元素标签名集合（来自 compiler-dom 的 PATTERN；mini 先放常用子集） */
 const NATIVE_TAGS = new Set([
@@ -21,17 +26,28 @@ const NATIVE_TAGS = new Set([
 ])
 
 export function resolveComponent(name: string, appContext?: any): any {
-  // 1. 当前组件的局部 components 选项（<template><Child/></template> 场景）
+  // 1. 当前组件（以及父链）的局部 components 选项 —— 插槽内容以「父组件上下文」解析
+  //（近似真 Vue 的 slot owner 实例追踪；KeepAlive/Slot 场景需要沿父链找到定义处）
   const inst = getCurrentRenderingInstance()
-  if (inst && inst.type && inst.type.components) {
-    const local = inst.type.components[name]
-    if (local) return local
+  if (inst) {
+    let cur: any = inst
+    while (cur) {
+      if (cur.type && cur.type.components) {
+        const local = cur.type.components[name]
+        if (local) return local
+      }
+      cur = cur.parent
+    }
   }
   // 2. 应用级 app.component 注册表
   const ctx = appContext || (inst && inst.appContext)
   const appComponents = ctx && ctx.components
   if (appComponents && appComponents[name]) {
     return appComponents[name]
+  }
+  // 内建组件（Transition/KeepAlive…）
+  if (BUILTIN_COMPONENTS[name]) {
+    return BUILTIN_COMPONENTS[name]
   }
   return name // 未识别 → 原样返回字符串（渲染器当元素用）
 }

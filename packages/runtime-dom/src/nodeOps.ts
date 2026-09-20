@@ -38,4 +38,12 @@ export const nodeOps = {
   parentNode: (node: Node): Element | null => node.parentNode as Element | null,
 
   nextSibling: (node: Node): Node | null => node.nextSibling,
+
+  // KeepAlive 显隐：display 切换（留在原位隐藏，不清晨 slot）
+  hideNode: (el: Element) => {
+    ;(el as HTMLElement).style.display = 'none'
+  },
+  showNode: (el: Element) => {
+    ;(el as HTMLElement).style.display = ''
+  },
 } satisfies Partial<RendererOptions<Node, Element>>

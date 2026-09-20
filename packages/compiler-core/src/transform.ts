@@ -128,6 +128,7 @@ function traverseNode(node: any, context: TransformContext) {
       traverseChildren(node.children, context, node)
       break
     case NodeTypes.IF:
+      context.helper(CREATE_COMMENT)
       traverseChildren((node as any).branches, context, node)
       break
     case NodeTypes.IF_BRANCH:
@@ -190,5 +191,5 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
 }
 
 // transform.ts 用的内部 helper 符号
-import { TO_DISPLAY_STRING, helperNameMap } from './runtimeHelpers'
+import { CREATE_COMMENT, TO_DISPLAY_STRING, helperNameMap } from './runtimeHelpers'
 const TO_DISPLAY_STRING_SYM = TO_DISPLAY_STRING

@@ -147,7 +147,7 @@
 > 有价值核心项补回；阶段 8 用展示 app 收官。
 
 - [x] **7-1** Options API 基础（data/computed/methods/watch/生命周期选项 + publicThis 合并）+ v-model 修饰符（.trim/.number/.lazy）（✅ 2026-09-20，199 测试绿）
-- [ ] **7-2** Transition（CSS 过渡简版）+ KeepAlive（缓存简版）
+- [x] **7-2** Transition（CSS 过渡简版：enter/leave 类 + 延迟卸载）+ KeepAlive（隐藏式去激活 + 缓存复用 + 状态保留）（✅ 2026-09-20，203 测试绿）
 - [ ] **7-3** 编译器优化初版（静态提升 + patchFlag + block 树）
 
 ## 阶段 8 — mini-vue 展示 app + 文档收尾（○）

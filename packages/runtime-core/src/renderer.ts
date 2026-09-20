@@ -52,6 +52,9 @@ export interface RendererOptions<HostNode = any, HostElement = any> {
   setElementText(el: HostElement, text: string): void
   parentNode(node: HostNode): HostElement | null
   nextSibling(node: HostNode): HostNode | null
+  /** KeepAlive 的隐藏/显示（runtime-dom 注入 el.style.toggle） */
+  hideNode?(el: HostElement): void
+  showNode?(el: HostElement): void
 }
 
 type HostNode<T> = T extends RendererOptions<any, infer H> ? H : any
@@ -78,6 +81,9 @@ function baseCreateRenderer(options: RendererOptions) {
     setElementText: hostSetElementText,
     parentNode: hostParentNode,
     nextSibling: hostNextSibling,
+    // KeepAlive 隐藏/显示（可选，未注入则使用空操作）
+    hideNode: hostHideNode = () => {},
+    showNode: hostShowNode = () => {},
   } = options
 
   // /** post-flush 生命周期钩子（onMounted 等） */
@@ -238,10 +244,15 @@ function baseCreateRenderer(options: RendererOptions) {
       }
     }
 
+    // Transition：insert 前挂 enter-from 类
+    vnode.transition && vnode.transition.beforeEnter(el)
     hostInsert(el, container, anchor)
 
     // 指令 mounted 钩子（v-model/v-show 等）
     invokeDirectiveHook(vnode, null, parentComponent, 'mounted')
+
+    // Transition：insert 后触发 enter 动画
+    vnode.transition && vnode.transition.enter(el)
   }
 
   function mountChildren(
@@ -521,6 +532,15 @@ function baseCreateRenderer(options: RendererOptions) {
     parentComponent: ComponentInternalInstance | null,
   ) {
     if (n1 == null) {
+      // KeepAlive 回魂：缓存实例还在 → 显示 + 刷新，不重跑 setup
+      if ((n2 as any)._activate && n2.component) {
+        const instance = n2.component
+        const rootEl = instance.subTree && instance.subTree.el
+        if (rootEl) hostShowNode(rootEl)
+        ;(n2 as any)._activate = undefined
+        instance.update()
+        return
+      }
       mountComponent(n2, container, anchor, parentComponent)
     } else {
       updateComponent(n1, n2)
@@ -663,15 +683,28 @@ function baseCreateRenderer(options: RendererOptions) {
     const { shapeFlag } = vnode
 
     if (shapeFlag & ShapeFlags.COMPONENT) {
+      // KeepAlive：带 _deactivate 标记 → 隐藏而非卸载
+      if ((vnode as any)._deactivate && vnode.component) {
+        const rootEl = vnode.component.subTree && vnode.component.subTree.el
+        if (rootEl) hostHideNode(rootEl)
+        return
+      }
       unmountComponent(vnode.component!, parentComponent)
     } else {
       if (vnode.type === Fragment) {
         unmountFragment(vnode, parentComponent)
       } else {
         if (doRemove) {
-          // 指令 unmounted 钩子
-          invokeDirectiveHook(vnode, null, parentComponent, 'unmounted')
-          hostRemove(vnode.el)
+          if (vnode.transition && vnode.transition.leave) {
+            // Transition：动画结束后才真正移除
+            vnode.transition.leave(vnode.el, () => {
+              invokeDirectiveHook(vnode, null, parentComponent, 'unmounted')
+              hostRemove(vnode.el)
+            })
+          } else {
+            invokeDirectiveHook(vnode, null, parentComponent, 'unmounted')
+            hostRemove(vnode.el)
+          }
         }
       }
     }

@@ -102,6 +102,10 @@ export type { App } from './apiCreateApp'
 
 export { renderSlot } from './helpers/renderSlot'
 
+export { Transition } from './components/Transition'
+export type { TransitionProps } from './components/Transition'
+export { KeepAlive } from './components/KeepAlive'
+
 export {
   resolveComponent,
   resolveDynamicComponent,

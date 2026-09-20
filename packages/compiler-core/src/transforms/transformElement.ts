@@ -28,6 +28,7 @@ import {
   CREATE_ELEMENT_VNODE,
   CREATE_VNODE,
   RESOLVE_COMPONENT,
+  RESOLVE_DYNAMIC_COMPONENT,
   LOOSE_TO_NUMBER,
   V_MODEL_CHECKBOX,
   V_MODEL_RADIO,
@@ -43,10 +44,30 @@ export const transformElement: NodeTransform = (node, context) => {
     if ((node as ElementNode).type !== NodeTypes.ELEMENT) return
     const el = node as ElementNode
     const tag = el.tag
-    const isComponent = (el as any).tagType === 1 // COMPONENT
+    let isComponent = (el as any).tagType === 1 // COMPONENT
 
     let vnodeTag: any = tag
-    if (isComponent) {
+    let isDynamicComponent = false
+    if (tag === 'component') {
+      // <component :is="expr"/> → _resolveDynamicComponent(expr)
+      const isProp = el.props.find(
+        (p: any) =>
+          (p.type === NodeTypes.DIRECTIVE && p.name === 'bind' && p.arg && p.arg.content === 'is') ||
+          (p.type === NodeTypes.ATTRIBUTE && p.name === 'is'),
+      ) as any
+      const isValue = isProp
+        ? (isProp as any).exp
+          ? (isProp as any).exp
+          : (isProp as any).value
+            ? createSimpleExpression((isProp as any).value.content, false)
+            : undefined
+        : undefined
+      vnodeTag = createCallExpression(context.helper(RESOLVE_DYNAMIC_COMPONENT), [
+        isValue || createSimpleExpression('undefined', false),
+      ])
+      isComponent = true // 用 _createVNode 按运行时的解析结果算 shapeFlag
+      isDynamicComponent = true
+    } else if (isComponent) {
       vnodeTag = createCallExpression(context.helper(RESOLVE_COMPONENT), [
         createSimpleExpression(tag, true),
       ])
@@ -166,6 +187,7 @@ export const transformElement: NodeTransform = (node, context) => {
     }
 
     // 组件标签用 _createVNode（会按「解析后的对象」算 COMPONENT shapeFlag）
+    void isDynamicComponent
     context.helper(isComponent ? CREATE_VNODE : CREATE_ELEMENT_VNODE)
     let vnodeCall: any = createVNodeCall(vnodeTag, vnodeProps, vnodeChildren, -1)
     ;(vnodeCall as any).isComponent = isComponent
