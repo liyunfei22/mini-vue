@@ -26,6 +26,8 @@ export let activeEffectScope: EffectScope | undefined
 
 export class EffectScope {
   private _active = true
+  private _on = 0
+  prevScope: EffectScope | undefined
 
   /** 本 scope 直接创建的 effect */
   effects: ReactiveEffect[] = []
@@ -55,6 +57,28 @@ export class EffectScope {
 
   get active(): boolean {
     return this._active
+  }
+
+  /**
+   * 手动「激活」本 scope（组件 setup 会调 instance.scope.on()），配合 off() 成对使用。
+   * 与 scope.run() 的区别：on/off 不执行回调，只切换 activeEffectScope，
+   * 让「暂态上下文」（如 setup 同步执行期间创建的 effect）能归属到本 scope。
+   */
+  on() {
+    if (++this._on === 1) {
+      this.prevScope = activeEffectScope
+      activeEffectScope = this
+    }
+  }
+
+  off() {
+    if (this._on > 0 && --this._on === 0) {
+      // mini：只支持 LIFO 场景（组件 setup 同步压栈/出栈）
+      if (activeEffectScope === this) {
+        activeEffectScope = this.prevScope
+      }
+      this.prevScope = undefined
+    }
   }
 
   run<T>(fn: () => T): T | undefined {

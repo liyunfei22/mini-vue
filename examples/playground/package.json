@@ -1,0 +1,10 @@
+{
+  "name": "@mini-vue/playground",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@mini-vue/runtime-dom": "workspace:*",
+    "@mini-vue/reactivity": "workspace:*"
+  }
+}

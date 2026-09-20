@@ -7,10 +7,13 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "node scripts/check-self-containment.mjs"
+    "check": "node scripts/check-self-containment.mjs",
+    "dev:playground": "vite examples/playground --config examples/playground/vite.config.ts"
   },
   "devDependencies": {
+    "jsdom": "^30.1.0",
     "typescript": "^5.5.0",
+    "vite": "^8.3.0",
     "vitest": "^3.0.0"
   }
 }

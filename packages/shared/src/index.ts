@@ -95,6 +95,72 @@ export const extend = Object.assign
 export const capitalize = (str: string): string =>
   str.charAt(0).toUpperCase() + str.slice(1)
 
+/** 'foo-bar' → 'fooBar'（事件/attribute 名驼峰化） */
+export const camelize = (str: string): string =>
+  str.replace(/-(\w)/g, (_, c) => (c ? c.toUpperCase() : ''))
+
+/** 'fooBar' → 'foo-bar'（驼峰转中线） */
+export const hyphenate = (str: string): string =>
+  str.replace(/\B([A-Z])/g, '-$1').toLowerCase()
+
+/** 'click' → 'onClick'（事件 handler 名） */
+export const toHandlerKey = (str: string): string => (str ? `on${capitalize(str)}` : ``)
+
+/** 是不是 onXxx 形式的事件名 */
+export const isOn = (key: string): boolean =>
+  key.charCodeAt(0) === 111 /* o */ &&
+  key.charCodeAt(1) === 110 /* n */ &&
+  // uppercase letter
+  (key.charCodeAt(2) > 122 || key.charCodeAt(2) < 97)
+
+/** 把字符串/数组/对象形式的 class 归一化成字符串 */
+export function normalizeClass(value: unknown): string {
+  let res = ''
+  if (isString(value)) {
+    res = value
+  } else if (isArray(value)) {
+    for (let i = 0; i < value.length; i++) {
+      const normalized = normalizeClass(value[i])
+      if (normalized) res += normalized + ' '
+    }
+  } else if (isObject(value)) {
+    for (const name in value) {
+      if (value[name]) res += name + ' '
+    }
+  }
+  return res.trim()
+}
+
+/** 把对象/字符串形式的 style 归一化成对象（数组形式简化拼接） */
+export function normalizeStyle(value: unknown): Record<string, any> | string {
+  if (isArray(value)) {
+    const res: Record<string, any> = {}
+    for (let i = 0; i < value.length; i++) {
+      const item = value[i]
+      const normalized = isString(item) ? parseStringStyle(item) : item
+      if (normalized) extend(res, normalized)
+    }
+    return res
+  }
+  if (isString(value)) {
+    return parseStringStyle(value)
+  }
+  return value as Record<string, any>
+}
+
+export function parseStringStyle(cssText: string): Record<string, any> {
+  const ret: Record<string, any> = {}
+  cssText.split(';').forEach((item) => {
+    if (item) {
+      const single = item.split(':')
+      const key = single.shift()!.trim()
+      const value = single.join(':').trim()
+      if (key && value) ret[key] = value
+    }
+  })
+  return ret
+}
+
 /** 根据一组 key 生成「包含判断函数」的高阶工厂（编译器/事件系统大量用到） */
 export const makeMap = (str: string, expectsLowerCase?: boolean): ((key: string) => boolean) => {
   const map: Record<string, boolean> = Object.create(null)

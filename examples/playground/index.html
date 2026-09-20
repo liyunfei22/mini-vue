@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mini-vue playground — 阶段 3 runtime</title>
+    <style>
+      body { font-family: system-ui; padding: 24px; color: #334155; max-width: 640px; margin: 0 auto; }
+      .card { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+      button { margin-right: 8px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 4px 12px; background: #f8fafc; cursor: pointer; }
+      .theme-badge { display: inline-block; background: #111; color: #fff; border-radius: 99px; padding: 2px 10px; font-size: 12px; }
+      pre { background: #f1f5f9; border-radius: 8px; padding: 12px; font-size: 13px; }
+    </style>
+  </head>
+  <body>
+    <!-- 挂载点：mini-vue 会接管这里 -->
+    <div id="app"></div>
+
+    <pre>// 纯 h() 手写 —— 无模板编译器，验证「响应式 ↔ 渲染器」闭环
+createApp(App).mount('#app')</pre>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
