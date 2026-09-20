@@ -3,6 +3,9 @@
  * 自包含性静态检查：
  *   mini-vue-router / mini-pinia 必须只依赖 @mini-vue/* 包，绝不能 import 真 vue。
  * 用「代码扫描」通道保证 capstone 的「全家桶自洽」成立（依赖树检查在阶段 7 细化）。
+ *
+ * 注（2026-09-20）：router/pinia 是两个「同级独立仓库」（/Users/liyf/ms/mini-vue-router、
+ * /Users/liyf/ms/mini-pinia），不在本仓库 packages/ 内；本脚本届时扫描同级目录 src。
  */
 import { existsSync, readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -24,9 +27,10 @@ function collectTs(dir, acc = []) {
 }
 
 for (const pkg of CHECK_PACKAGES) {
-  const src = join(root, 'packages', pkg, 'src')
+  // 同级独立仓库（/Users/liyf/ms/mini-vue-router、mini-pinia），不在本仓 packages/ 内
+  const src = join(root, '..', `mini-${pkg === 'vue-router' ? 'router' : 'pinia'}`, 'src')
   if (!existsSync(src)) {
-    console.log(`[skip] packages/${pkg}/src 尚不存在（阶段 ${pkg === 'vue-router' ? 7 : 8} 创建）`)
+    console.log(`[skip] 同级目录 mini-${pkg === 'vue-router' ? 'router' : 'pinia'}/src 尚不存在（阶段 ${pkg === 'vue-router' ? 7 : 8} 创建）`)
     continue
   }
   const files = collectTs(src)
