@@ -14,6 +14,9 @@ export {
   isRef,
   unref,
   toValue,
+  triggerRef,
+  customRef,
+  proxyRefs,
 } from './ref'
 export type {
   Ref,
@@ -23,6 +26,7 @@ export type {
   ToRefs,
   UnwrapRef,
   UnwrapRefSimple,
+  CustomRefFactory,
 } from './ref'
 
 export * from './reactive'
@@ -63,5 +67,14 @@ export {
 
 export { createDep } from './dep'
 export type { Dep } from './dep'
+
+export {
+  effectScope,
+  getCurrentScope,
+  onScopeDispose,
+  EffectScope,
+  recordEffectScope,
+  activeEffectScope,
+} from './effectScope'
 
 export { warn } from './warning'

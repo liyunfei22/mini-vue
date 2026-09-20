@@ -19,6 +19,12 @@ import {
   shallowReactiveHandlers,
   shallowReadonlyHandlers,
 } from './baseHandlers'
+import {
+  mutableCollectionHandlers,
+  readonlyCollectionHandlers,
+  shallowCollectionHandlers,
+  shallowReadonlyCollectionHandlers,
+} from './collectionHandlers'
 import { ReactiveFlags } from './operations'
 import { warn } from './warning'
 
@@ -27,7 +33,8 @@ export interface Target {
   [ReactiveFlags.IS_REACTIVE]?: boolean
   [ReactiveFlags.IS_READONLY]?: boolean
   [ReactiveFlags.IS_SHALLOW]?: boolean
-  [ReactiveFlags.RAW]?: unknown
+  /** RAW 用 any（与真 Vue 一致）：内部代码频繁做 `this[RAW]` 的取壳操作 */
+  [ReactiveFlags.RAW]?: any
 }
 
 // ---- 四张「原始对象 → 代理」缓存表（WeakMap 让原始对象被回收时整条记录可回收）----
@@ -71,7 +78,7 @@ export function reactive<T extends object>(target: T): UnwrapNestedRefs<T> {
     target,
     false,
     mutableHandlers,
-    mutableHandlers, // TODO(stage2): 集合特化 collectionHandlers 在阶段 2 接入
+    mutableCollectionHandlers,
     reactiveMap,
   )
 }
@@ -81,7 +88,7 @@ export function shallowReactive<T extends object>(target: T): T {
     target,
     false,
     shallowReactiveHandlers,
-    shallowReactiveHandlers, // TODO(stage2)
+    shallowCollectionHandlers,
     shallowReactiveMap,
   )
 }
@@ -91,7 +98,7 @@ export function readonly<T extends object>(target: T): DeepReadonly<UnwrapNested
     target,
     true,
     readonlyHandlers,
-    readonlyHandlers, // TODO(stage2)
+    readonlyCollectionHandlers,
     readonlyMap,
   )
 }
@@ -101,7 +108,7 @@ export function shallowReadonly<T extends object>(target: T): Readonly<T> {
     target,
     true,
     shallowReadonlyHandlers,
-    shallowReadonlyHandlers, // TODO(stage2)
+    shallowReadonlyCollectionHandlers,
     shallowReadonlyMap,
   )
 }

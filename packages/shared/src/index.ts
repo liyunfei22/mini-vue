@@ -91,6 +91,10 @@ export const def = (obj: object, key: string | symbol, value: any) => {
 
 export const extend = Object.assign
 
+/** 'foo' → 'Foo'（警告文案等场合用） */
+export const capitalize = (str: string): string =>
+  str.charAt(0).toUpperCase() + str.slice(1)
+
 /** 根据一组 key 生成「包含判断函数」的高阶工厂（编译器/事件系统大量用到） */
 export const makeMap = (str: string, expectsLowerCase?: boolean): ((key: string) => boolean) => {
   const map: Record<string, boolean> = Object.create(null)

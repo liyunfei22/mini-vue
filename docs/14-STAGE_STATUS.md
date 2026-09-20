@@ -27,7 +27,27 @@
 
 ---
 
-## 阶段 2 — 响应式进阶（○）
+## 阶段 2 — 响应式进阶（✓）
+
+**当前状态**：✅ 已完成（2026-09-20），review gate 通过
+
+**交付清单**
+- [x] `effectScope.ts` + effect.ts 集成（构造器自动登记）
+- [x] `collectionHandlers.ts` + reactive.ts 四件套接入
+- [x] ref.ts 扩展：shallowRef / triggerRef / customRef / proxyRefs
+- [x] 镜像测试：effectScope / Map / Set / refAdvanced（**111 用例全绿**，tsc 0 错误）
+- [x] 中文文档：`docs/02-响应式进阶.md`
+
+**Review Gate 判断题**（答案见 `docs/02-响应式进阶.md` 第 2 节）
+1. `onScopeDispose` 何时执行、以什么顺序？
+2. `markRaw` 在 pinia 里具体防什么？
+3. router 的 `currentRoute` 为什么必须用 `shallowRef`？
+
+**本轮所学笔记**：
+- scope 是组件/pinia 生命周期的地基；`scope.stop()` = 批量断连 + 清理 + 递归子树；<br>
+- 集合必须「改道 instrumentations」才能绕开内部槽 + 翻译成 track/trigger；<br>
+- `ITERATE_KEY`（整体结构）vs `MAP_KEY_ITERATE_KEY`（仅键集）双锚点；<br>
+- 深响应式打开程度可逐格控制：ref/reactive（深）、shallowRef/shallowReactive（浅）、markRaw（关）。
 
 ## 阶段 3 — runtime-core 基础（○）
 

@@ -43,6 +43,7 @@ import {
   TriggerOpTypes,
 } from './operations'
 import type { ComputedRefImpl } from './computed'
+import { activeEffectScope, recordEffectScope, type EffectScope } from './effectScope'
 
 export type EffectScheduler = (...args: any[]) => any
 
@@ -64,9 +65,12 @@ export interface ReactiveEffectOptions {
   allowRecurse?: boolean
   /**
    * stop() 时的钩子（watch 用它注销清理函数）。
-   * scope 相关的记录（recordEffectScope）在阶段 2 引入 effectScope 时补充。
    */
   onStop?: () => void
+  /**
+   * 显式归属的 effect scope（阶段 2）：不传则按「构造时活跃 scope」自动登记。
+   */
+  scope?: EffectScope
 }
 
 export type ReactiveEffectRunner<T = any> = {
@@ -123,7 +127,18 @@ export class ReactiveEffect<T = any> {
   constructor(
     public fn: () => T,
     public scheduler: EffectScheduler | undefined,
-  ) {}
+  ) {
+    // 自动登记进「构造时的活跃 effect scope」：scope.run() 里创建的 effect，
+    // 会随 scope.stop() 一起被停掉（阶段 2 新增，对应真 Vue 3.5 行为）
+    if (activeEffectScope) {
+      if (activeEffectScope.active) {
+        activeEffectScope.effects.push(this)
+      } else {
+        // 父 scope 已停止，这个 effect 一出生就失活（防止孤儿订阅）
+        this.active = false
+      }
+    }
+  }
 
   run(): T | undefined {
     // 已 stop 的 effect：直接跑一次 fn，但不做任何收集
@@ -354,6 +369,10 @@ export function effect<T = any>(fn: () => T, options?: ReactiveEffectOptions): R
   const _effect = new ReactiveEffect(fn, options && options.scheduler)
   if (options) {
     extend(_effect, options)
+    // 显式指定 scope 时额外登记（options.scope 优先级高于构造时的活跃 scope）
+    if (options.scope) {
+      recordEffectScope(_effect, options.scope)
+    }
   }
 
   if (!options || !options.lazy) {

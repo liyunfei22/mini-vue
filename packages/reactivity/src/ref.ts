@@ -19,7 +19,15 @@ import { hasChanged, isArray, isFunction, isObject, isSymbol } from '@mini-vue/s
 import { createDep, type Dep } from './dep'
 import { activeEffect, shouldTrack, trackEffects, triggerEffects } from './effect'
 import { ReactiveFlags, TrackOpTypes, TriggerOpTypes } from './operations'
-import { isProxy, isReadonly, reactive, toRaw, toReactive } from './reactive'
+import {
+  isProxy,
+  isReactive,
+  isReadonly,
+  isShallow,
+  reactive,
+  toRaw,
+  toReactive,
+} from './reactive'
 import { warn } from './warning'
 
 export interface Ref<T = any> {
@@ -74,13 +82,99 @@ class RefImpl<T = any> {
   }
 
   set value(newVal) {
+    // shallow/readonly 场景要「原样存储」：
+    //   - shallowRef / 已是浅代理 / 只读代理 → 直接存，不脱壳也不深代理
+    const useDirectValue =
+      this.shallow || isShallow(newVal) || isReadonly(newVal)
+    newVal = useDirectValue ? newVal : toRaw(newVal)
     if (hasChanged(newVal, this._rawValue)) {
       this._rawValue = newVal
-      this._value = toReactive(newVal)
+      this._value = useDirectValue ? newVal : toReactive(newVal)
       // 写 → 触发所有订阅者
       triggerRefValue(this, newVal)
     }
   }
+}
+
+// ---------------------------------------------------------------
+// triggerRef / customRef / proxyRefs（阶段 2 新增）
+// ---------------------------------------------------------------
+
+/**
+ * 强制触发一个 ref 的订阅者。典型场景：
+ * `shallowRef` 的内部值被深改（shallow.value.obj.x = 2）时不触发订阅者，
+ * 手动 triggerRef(shallow) 让它重新求值。
+ */
+export function triggerRef(ref: Ref): void {
+  triggerRefValue(ref)
+}
+
+/**
+ * 自定义 ref：由使用者完全掌控「读时怎么收集、写时怎么触发」。
+ * factory 收到两个函数 track() / trigger()，返回自定义的 get/set。
+ * 经典例子：带防抖的 ref —— get 正常返回并 track，set 延时 1s 再改 + trigger。
+ */
+export function customRef<T>(factory: CustomRefFactory<T>): Ref<T> {
+  return new CustomRefImpl(factory) as any
+}
+
+export type CustomRefFactory<T> = (
+  track: () => void,
+  trigger: () => void,
+) => {
+  get: () => T
+  set: (value: T) => void
+}
+
+class CustomRefImpl<T> {
+  dep?: Dep
+  private _get: () => T
+  private _set: (value: T) => void
+  readonly [ReactiveFlags.IS_REF] = true
+
+  constructor(factory: CustomRefFactory<T>) {
+    const dep = (this.dep = createDep())
+    // 把「收集/触发」的能力交给使用者的 get/set 内部去调用
+    const { get, set } = factory(
+      () => trackEffects(dep),
+      () => triggerEffects(dep),
+    )
+    this._get = get
+    this._set = set
+  }
+
+  get value() {
+    return this._get()
+  }
+
+  set value(newVal) {
+    this._set(newVal)
+  }
+}
+
+/**
+ * proxyRefs(obj)：对「装满了 ref 的普通对象」做浅解包代理（setup 返回值常用）。
+ *   - get：属性是 ref → 返回 .value；是普通值 → 原样
+ *   - set：属性原来是 ref、新值是普通值 → 写进 ref；否则普通赋值
+ * 本身就是 reactive 的对象直接返回（reactive 已带解包能力）。
+ */
+const shallowUnwrapHandlers: ProxyHandler<any> = {
+  get: (target, key, receiver) =>
+    key === ReactiveFlags.RAW ? target : unref(Reflect.get(target, key, receiver)),
+  set: (target, key, value, receiver) => {
+    const oldValue = target[key]
+    if (isRef(oldValue) && !isRef(value)) {
+      oldValue.value = value
+      return true
+    }
+    return Reflect.set(target, key, value, receiver)
+  },
+}
+
+export function proxyRefs<T extends object>(objectWithRefs: T): any {
+  return isReactive(objectWithRefs)
+    ? objectWithRefs
+    : new Proxy(objectWithRefs, shallowUnwrapHandlers)
 }
 
 // ---------------------------------------------------------------
