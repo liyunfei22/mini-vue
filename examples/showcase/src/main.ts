@@ -37,7 +37,7 @@ const ReactiveDemo = defineComponent({
 const CounterButton = defineComponent({
   props: ['label'],
   emits: ['increment'],
-  setup(props, { emit }) {
+  setup(props: any, { emit }: any) {
     return { label: props.label, bump: () => emit('increment') }
   },
   template: `<button @click="bump">{{ label }}</button>`,
@@ -76,10 +76,10 @@ const ListDemo = {
     return { show: true, items: ['Vue3', 'Vue Router', 'Pinia'], showList: true }
   },
   methods: {
-    toggleShow() {
+    toggleShow(this: any) {
       this.show = !this.show
     },
-    add() {
+    add(this: any) {
       this.items.push(`item ${this.items.length + 1}`)
     },
   },
@@ -103,17 +103,17 @@ const OptionsDemo = {
     return { n: 1 }
   },
   computed: {
-    double() {
+    double(this: any) {
       return this.n * 2
     },
   },
   methods: {
-    inc() {
+    inc(this: any) {
       this.n++
     },
   },
   watch: {
-    n(v, old) {
+    n(v: any, old: any) {
       console.log(`[Options watch] n: ${old} → ${v}`)
     },
   },

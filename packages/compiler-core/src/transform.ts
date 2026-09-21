@@ -11,6 +11,7 @@
  *   3. 把 root.codegenNode 定出来（单根直接用其 codegenNode，多根用 Fragment 包装）。
  */
 import {
+  createArrayExpression,
   createVNodeCall,
   Fragment,
   NodeTypes,
@@ -186,16 +187,21 @@ function createRootCodegen(root: RootNode, context: TransformContext) {
       root.codegenNode = child
     }
   } else if (children.length > 1) {
+    // 多根 → Fragment 包装；children 必须是「已转化的 codegen 节点」的数组表达式
     root.codegenNode = createVNodeCall(
       Fragment as any,
       undefined,
-      root.children as any,
+      createArrayExpression(children.map((c: any) => c.codegenNode || c)),
       -1,
       false,
     )
+    ;(root.codegenNode as any).isBlock = true
+    context.helper(FRAGMENT)
+    context.helper(OPEN_BLOCK)
+    context.helper(CREATE_ELEMENT_BLOCK)
   }
 }
 
 // transform.ts 用的内部 helper 符号
-import { CREATE_COMMENT, CREATE_ELEMENT_BLOCK, OPEN_BLOCK, TO_DISPLAY_STRING, helperNameMap } from './runtimeHelpers'
+import { CREATE_COMMENT, CREATE_ELEMENT_BLOCK, FRAGMENT, OPEN_BLOCK, TO_DISPLAY_STRING, helperNameMap } from './runtimeHelpers'
 const TO_DISPLAY_STRING_SYM = TO_DISPLAY_STRING

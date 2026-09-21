@@ -437,11 +437,13 @@ function collectHoistedNodes(node: any, out: any[]) {
       !node.dirs?.length &&
       node.tag &&
       typeof node.tag === 'string' &&
-      // children 必须是纯静态形态才能整体提升（JS 调用如 renderSlot 依赖 _ctx，提升会把
-      // _ctx 移出 with 作用域 → ReferenceError；多 children 数组也保守不升）
+      // children 必须是纯静态形态（JS 调用如 renderSlot 依赖 _ctx，提升会把 _ctx 移出
+      // with 作用域 → ReferenceError；多 children 数组保守不升）
       (node.children == null ||
         typeof node.children === 'string' ||
-        node.children.type === NodeTypes.TEXT_CALL)
+        node.children.type === NodeTypes.TEXT_CALL) &&
+      // props 必须全静态（动态值 age = _looseToNumber(...) 在 with 外引用会 ReferenceError）
+      isStaticProps(node.props)
     if (hoistable) {
       // 子树一并提升（不深入）
       ;(node as any)._hoistedId = out.length + 1
@@ -481,4 +483,14 @@ function createSubContext(main: CodegenContext): CodegenContext {
       return main.helper(key)
     },
   }
+}
+
+
+/** props 是否全静态：null 或 ObjectExpression 的每个属性值都是静态字面量 */
+function isStaticProps(props: any): boolean {
+  if (!props) return true
+  if (props.type !== NodeTypes.JS_OBJECT_EXPRESSION) return false
+  return props.properties.every(
+    (p: any) => p.value && (p.value.isStatic === true || !p.value.type),
+  )
 }

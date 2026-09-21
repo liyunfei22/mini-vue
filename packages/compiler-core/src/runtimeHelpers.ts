@@ -20,6 +20,7 @@ export const V_MODEL_CHECKBOX = Symbol('vModelCheckbox')
 export const V_MODEL_RADIO = Symbol('vModelRadio')
 export const V_MODEL_SELECT = Symbol('vModelSelect')
 export const V_SHOW = Symbol('vShow')
+export const FRAGMENT = Symbol('Fragment')
 export const SET_BLOCK_TRACKING = Symbol('setBlockTracking')
 export const OPEN_BLOCK = Symbol('openBlock')
 export const CREATE_VNODE = Symbol('createVNode')
@@ -44,6 +45,7 @@ export const helperNameMap: Record<symbol, string> = {
   [V_SHOW]: 'vShow',
   [CREATE_VNODE]: 'createVNode',
   [OPEN_BLOCK]: 'openBlock',
+  [FRAGMENT]: 'Fragment',
   [CREATE_ELEMENT_BLOCK]: 'createElementBlock',
 }
 

@@ -1,13 +1,28 @@
 import { defineConfig } from 'vitest/config'
+import { fileURLToPath } from 'node:url'
+
+const pkg = (name: string) =>
+  fileURLToPath(new URL(`./packages/${name}/src/index.ts`, import.meta.url))
 
 // packages 通过 pnpm workspace 在根 node_modules 建立符号链接，
-// 包名（如 @mini-vue/shared）直接由 exports 解析到 src/index.ts，
-// vitest(vite) 会以 esbuild 直接消费 TS 源码，无需前置构建。
+// 包名（如 @mini-vue/shared）由 exports 解析到 src/index.ts；
+// 这里显式 alias 是对「测试文件/示例里直接裸引 @mini-vue/*」的兜底
+// （部分场景 vite 的 workspace 解析不覆盖到 examples/ 或测试目录）。
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@mini-vue/shared': pkg('shared'),
+      '@mini-vue/reactivity': pkg('reactivity'),
+      '@mini-vue/runtime-core': pkg('runtime-core'),
+      '@mini-vue/runtime-dom': pkg('runtime-dom'),
+      '@mini-vue/compiler-core': pkg('compiler-core'),
+      '@mini-vue/compiler-dom': pkg('compiler-dom'),
+      '@mini-vue/vue': pkg('vue'),
+    },
+  },
   test: {
     include: ['packages/**/__tests__/**/*.spec.ts'],
-    // 默认 node 环境；后续 runtime/compiler 包需要 DOM 的用例，
-    // 会在文件头加 `// @vitest-environment jsdom` 单独切换
+    // 默认 node 环境；需要 DOM 的用例在文件头 `// @vitest-environment jsdom`
     environment: 'node',
   },
 })

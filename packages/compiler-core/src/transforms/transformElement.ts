@@ -135,8 +135,14 @@ export const transformElement: NodeTransform = (node, context) => {
           hasDynamicProps = true
         } else if (name === 'html' && exp) {
           properties.push(createObjectProperty(createSimpleExpression('innerHTML', true), exp))
+          patchFlag |= PatchFlags.PROPS
+          if (dynamicPropsNames && !dynamicPropsNames.includes('innerHTML')) dynamicPropsNames.push('innerHTML')
+          hasDynamicProps = true
         } else if (name === 'text' && exp) {
           properties.push(createObjectProperty(createSimpleExpression('textContent', true), exp))
+          patchFlag |= PatchFlags.PROPS
+          if (dynamicPropsNames && !dynamicPropsNames.includes('textContent')) dynamicPropsNames.push('textContent')
+          hasDynamicProps = true
         } else if (name === 'model' && exp) {
           // 先看静态 type 属性决定 input 的具体形态
           const typeAttr = el.props.find(
@@ -144,6 +150,8 @@ export const transformElement: NodeTransform = (node, context) => {
           )
           const inputType = typeAttr && (typeAttr as any).value ? (typeAttr as any).value.content : ''
 
+          patchFlag |= PatchFlags.PROPS
+          hasDynamicProps = true
           if (tag === 'input' && inputType === 'checkbox') {
             properties.push(createObjectProperty(createSimpleExpression('checked', true), exp))
             dirs.push(modelBinding(context, V_MODEL_CHECKBOX, exp, modifiers))
