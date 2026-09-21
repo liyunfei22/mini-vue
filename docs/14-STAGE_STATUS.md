@@ -152,6 +152,14 @@
 
 **vue 内核补全收官** 🎉 —— 阶段 1–7 全部完成。
 
-## 阶段 8 — mini-vue 展示 app + 文档收尾（🚧 待开工）
+## 阶段 8 — mini-vue 展示 app + 文档收尾（✅ 2026-09-21 完成）
+
+- [x] `examples/showcase`：模板编译驱动的全能力展示页（响应式/v-model 修饰符/组件 props-emit/具名插槽/v-if·v-for·v-show/Options API/Transition/KeepAlive+动态组件/provide-inject）
+- [x] `README.md` + `docs/10-阅读地图-vue.md`（官方↔mini 全对照）
+- [x] 移除失效的 check 脚本（router/pinia 取消失去意义）
+- [x] 208 测试全绿、tsc 0 错误、双示例构建通过
+
+> 🎉 **项目收官**：mini-vue（vue 内核）从响应式到编译优化全部自研完成。
+> 原计划中的 mini-vue-router / mini-pinia 经用户确认取消。
 
 ## 阶段 9 — ❌ 已取消（原 capstone 全家桶自洽，随 router/pinia 一并移除）
