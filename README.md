@@ -38,6 +38,22 @@ pnpm dev:playground              # h() 手写 demo（vite）
 npx vite examples/showcase --config examples/showcase/vite.config.ts  # 展示页
 ```
 
+## 打包产物（参考官方 vue 的 rollup 脚手架）
+
+```bash
+pnpm build        # dev + d.ts：每包 dist/<pkg>.{esm-bundler.js, cjs, d.ts}，vue 另有 global.js
+pnpm build:prod   # __DEV__=false + 压缩，产出 *.prod.* / *.prod.cjs
+```
+
+- `scripts/build.js` 组织（逐包 spawn rollup + 依 `buildOptions.formats` 出多格式）；`rollup.config.js` 共享配置；
+- d.ts 两段式（`tsc emitDeclarationOnly → temp/` + `rollup-plugin-dts` 捆成 `dist/<pkg>.d.ts`）；
+- `__DEV__` 按 NODE_ENV define：dev=true / prod=false；
+- 每包 `package.json` 的 `exports` 带 **`source` 条件** → vite/vitest 与 rollup-local 构建走 `src/index.ts`，
+  npm 消费者走 `import`/`default`（dist）；
+- 本地模拟消费：`node -e "const V=require('@mini-vue/vue')"` 即从 dist 加载。
+
+产物形态对照官方：`dist/<pkg>.esm-bundler.js`（ESM）等价官方 esm-bundler；`dist/<pkg>.cjs` 等价官方 cjs；`vue.global.js`（IIFE，window.MiniVue）等价官方 global/UMD。
+
 ## 一句话说清它做了什么
 
 ```

@@ -9,3 +9,5 @@ third_party/*/
 
 # vitest 缓存
 .vitest/
+# tsc 声明中间产物
+temp/

@@ -5,12 +5,27 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": {
+        "source": "./src/index.ts",
+        "default": "./dist/compiler-dom.d.ts"
+      },
+      "source": "./src/index.ts",
+      "import": "./dist/compiler-dom.esm-bundler.js",
+      "default": "./dist/compiler-dom.cjs"
     }
   },
   "dependencies": {
     "@mini-vue/compiler-core": "workspace:*",
     "@mini-vue/shared": "workspace:*"
+  },
+  "main": "dist/compiler-dom.cjs",
+  "module": "dist/compiler-dom.esm-bundler.js",
+  "types": "dist/compiler-dom.d.ts",
+  "sideEffects": false,
+  "buildOptions": {
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
   }
 }

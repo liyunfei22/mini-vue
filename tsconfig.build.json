@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationDir": "temp/types",
+    "noEmit": false,
+    "allowImportingTsExtensions": false
+  },
+  "include": ["packages/*/src/**/*.ts"]
+}

@@ -5,11 +5,26 @@
   "type": "module",
   "exports": {
     ".": {
-      "types": "./src/index.ts",
-      "default": "./src/index.ts"
+      "types": {
+        "source": "./src/index.ts",
+        "default": "./dist/reactivity.d.ts"
+      },
+      "source": "./src/index.ts",
+      "import": "./dist/reactivity.esm-bundler.js",
+      "default": "./dist/reactivity.cjs"
     }
   },
   "dependencies": {
     "@mini-vue/shared": "workspace:*"
+  },
+  "main": "dist/reactivity.cjs",
+  "module": "dist/reactivity.esm-bundler.js",
+  "types": "dist/reactivity.d.ts",
+  "sideEffects": false,
+  "buildOptions": {
+    "formats": [
+      "esm-bundler",
+      "cjs"
+    ]
   }
 }

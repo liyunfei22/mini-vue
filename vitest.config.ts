@@ -10,6 +10,9 @@ const pkg = (name: string) =>
 // （部分场景 vite 的 workspace 解析不覆盖到 examples/ 或测试目录）。
 export default defineConfig({
   resolve: {
+    // exports 已加 source 条件：把 'source' 放进条件集首位 → 测试/vite 继续吃 src/index.ts
+    // （npm 消费者默认条件跑 import/default → dist）
+    conditions: ['source', 'module', 'browser', 'development|production', 'import', 'require', 'default'],
     alias: {
       '@mini-vue/shared': pkg('shared'),
       '@mini-vue/reactivity': pkg('reactivity'),
