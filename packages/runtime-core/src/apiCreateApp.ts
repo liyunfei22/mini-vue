@@ -8,7 +8,7 @@
  *   app.mount(container) 就是「把根组件 vnode 交给 render 打进容器」。
  * app 同时是几个全局能力的聚会点（mini 阶段 3 只实现核心子集）：
  *   provide —— 应用级注入（所有组件都能 inject）
- *   use     —— 插件协议（router/pinia 的安装入口，阶段 7/8 用）
+ *   use     —— 插件协议（生态库通过它向应用安装自己）
  *   component —— 全局组件注册
  *   config.globalProperties —— 阶段 4
  */

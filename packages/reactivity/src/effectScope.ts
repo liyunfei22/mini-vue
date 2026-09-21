@@ -3,17 +3,17 @@
  *
  * 对应真 Vue packages/reactivity/src/effectScope.ts。
  *
- * ## 为什么必须学它？（gate：阶段8 pinia 的立身之本）
- * pinia 在 createPinia 里建一个顶层 `effectScope(true)`，所有 store 的 state/computed/
- * subscriptions 都创建在这个 scope 内 —— store.dispose() / 整个 app 卸载时一个
- * scope.stop() 就把全部响应式副作用集体清掉，不留孤儿订阅。
+ * ## 为什么必须学它？
+ * 状态管理库会在顶层建一个 `effectScope(true)`，所有 store 的 state/computed/subscriptions
+ * 都创建在这个 scope 内 —— 库销毁时一个 scope.stop() 就把全部响应式副作用集体清掉，
+ * 不留孤儿订阅。组件实例本身也是一个 scope。
  *
  * ## 核心机制
  *   - scope.run(fn)：执行期间把全局 activeEffectScope 换成自己 —— 期间 new 出的
  *     ReactiveEffect 会被构造器自动登记进 scope.effects；
  *   - scope.stop()：① stop 自己直接创建的 effects ② 执行 cleanups（onScopeDispose 注册）
  *    ③ 递归 stop 子 scope ④ 从父 scope 的 scopes 数组摘掉自己；
- *   - detached=true：不挂父 scope 的目录（脱离层级，独立生死，pinia 顶层就是它）。
+ *   - detached=true：不挂父 scope 的目录（脱离层级，独立生死，库顶层 scope 就是它）。
  *
  * onScopeDispose(fn)：在「当前处在 scope.run() 里」时注册清理函数，scope.stop() 时执行。
  * 与组件 onUnmounted 的对偶：组件实例本质就是一个非 detached 的 effect scope（阶段3）。

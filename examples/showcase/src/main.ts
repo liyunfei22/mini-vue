@@ -73,7 +73,7 @@ const ComponentDemo = {
 // ============================================================
 const ListDemo = {
   data() {
-    return { show: true, items: ['Vue3', 'Vue Router', 'Pinia'], showList: true }
+    return { show: true, items: ['模板编译', '组件化', '指令系统'], showList: true }
   },
   methods: {
     toggleShow(this: any) {

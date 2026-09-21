@@ -11,8 +11,8 @@
  * 祖先链上每一层 provide 过的 key 都是可访问的，且创建成本 O(1)。
  * （这就是「原型链注入」。）
  *
- * 为什么会话初衷：router 用 provide(routerKey, router) 注入 currentRoute，
- * pinia 用 provide(piniaSymbol, pinia)，任意深层组件 inject 即得。
+ * 为什么会话初衷：库用 provide(Symbol, 实例) 注入内部对象，任意深层组件 inject 即得
+ * （如路由/状态库给组件注入当前路由与 store 实例）。
  */
 import type { ComponentInternalInstance } from './component'
 import { getCurrentInstance } from './currentInstance'

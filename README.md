@@ -67,7 +67,7 @@ pnpm build:prod   # __DEV__=false + 压缩，产出 *.prod.* / *.prod.cjs
 
 | # | 主题 | 关键结论 |
 |---|---|---|
-| 1–2 | 响应式 | track/trigger / effect cleanup 分支切换 / effectScope（pinia 天花） |
+| 1–2 | 响应式 | track/trigger / effect cleanup 分支切换 / effectScope（组件与库生命周期管理） |
 | 3–4 | runtime | 组件=effect+scope / keyed diff+LIS（移动最少） / watch 三 flush / invoker |
 | 5–6 | 编译 | 状态机 parse / transform 结构指令 / with(_ctx) 方案 / v-model 指令 |
 | 7 | 补全 | Options API 合并 / Transition·KeepAlive / patchFlag·block·hoistStatic |

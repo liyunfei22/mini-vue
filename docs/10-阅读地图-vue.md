@@ -12,7 +12,7 @@
 | `dep.ts` | `dep.ts` | 1 | targetMap 两层索引 |
 | `baseHandlers.ts` | `baseHandlers.ts` | 1 | get/set 四个开关组合 |
 | `reactive.ts` / `ref.ts` / `computed.ts` | 同名 | 1 | computed 的 _dirty 位 |
-| `effectScope.ts` | `effectScope.ts` | 2 | run/on/off/stop；pinia 地基 |
+| `effectScope.ts` | `effectScope.ts` | 2 | run/on/off/stop；组件/库生命周期管理地基 |
 | `collectionHandlers.ts` | `collectionHandlers.ts` | 2 | 内部槽 → instrumentations 改道 |
 | `constants.ts` | `operations.ts` | 1 | ITERATE_KEY / 操作类型 |
 | `watch.ts`(3.5 移入) | runtime-core `apiWatch.ts` | 4 | baseWatch 分工：scheduler 由 runtime 注入 |

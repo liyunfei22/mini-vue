@@ -1,6 +1,6 @@
 # 阶段 7 — 内核补全：Options API / v-model 修饰符（7-1）
 
-> 计划修订：router/pinia 取消（见 docs/00 仓库边界）。本项目只做 vue 内核，阶段 7 把
+> 计划修订：router/pinia 取消（见 docs/00 范围决策）。本项目只做 vue 内核，阶段 7 把
 > 此前降级的有价值核心项补回，阶段 8 用展示 app 收官。
 > 里程碑（7-1）：`pnpm test` 全绿（199 用例），tsc 0 错误。
 > 真源码锚点：`packages/runtime-core/src/componentOptions.ts`
