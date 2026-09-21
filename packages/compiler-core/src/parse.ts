@@ -371,10 +371,15 @@ export type { ElementTypes }
 
 function parseInterpolation(
   context: ParserContext,
-  _mode: TextModes,
+  mode: TextModes,
 ): TemplateChildNode | undefined {
+  // mini 阶段 5 的欠账修复（对齐真 Vue）：插值只应在 DATA/RCDATA 区解析，
+  // RAWTEXT（<script>/<style>）里 {{ }} 是纯文本
+  if (mode !== TextModes.DATA && mode !== TextModes.RCDATA) {
+    return undefined
+  }
   const [open, close] = ['{{', '}}']
-  // 必须先以 open 开头才可能是插值（否则会把普通文本误吞为「内容为裸链接」的插值）
+  // 必须先以 open 开头才可能是插值
   if (!context.source.startsWith(open)) {
     return undefined
   }
@@ -404,7 +409,12 @@ function parseInterpolation(
 }
 
 function parseText(context: ParserContext, mode: TextModes): TemplateChildNode {
-  const endTokens = ['<', '{{']
+  const endTokens =
+    mode === TextModes.RAWTEXT
+      ? ['</'] // RAWTEXT：直到关闭标签前的整段都是文本（'{{'、'<' 视为普通字符）
+      : mode === TextModes.RCDATA
+        ? ['{{', '</', '<']
+        : ['<', '{{'] // DATA：标签 / 插值切
   if (mode === TextModes.RCDATA) {
     endTokens.push('</')
   }
