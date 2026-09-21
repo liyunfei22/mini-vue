@@ -3,12 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "从零手写 Vue3 全家桶：mini-vue / mini-vue-router / mini-pinia（学习项目）",
+  "description": "一行行手写的 Vue3 内核（响应式/运行时/编译器 + Options API/Transition/KeepAlive/优化）",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "node scripts/check-self-containment.mjs",
-    "dev:playground": "vite examples/playground --config examples/playground/vite.config.ts"
+    "dev:playground": "vite examples/playground --config examples/playground/vite.config.ts",
+    "dev:showcase": "vite examples/showcase --config examples/showcase/vite.config.ts"
   },
   "devDependencies": {
     "jsdom": "^30.1.0",
