@@ -8,6 +8,7 @@
  * 存放：data/computed/methods 统一落到 instance.data（真 Vue 也是 data 一个命名空间）。
  */
 import { reactive, computed } from '@mini-vue/reactivity'
+import { EMPTY_OBJ } from '@mini-vue/shared'
 import { callWithErrorHandling, ErrorCodes } from './errorHandling'
 import { doWatch } from './apiWatch'
 import { injectHook } from './lifecycle'
@@ -20,7 +21,10 @@ export function applyOptions(instance: ComponentInternalInstance, rawOptions: Re
   // ---- data：reactive 化（无 data 也保持容器，method/computed 挂载用）----
   if (options.data) {
     instance.data = reactive(options.data.call(proxy, proxy) as Data)
-  } else if (!instance.data) {
+  } else if (instance.data === EMPTY_OBJ) {
+    // EMPTY_OBJ 是共享冻结空对象，不能往上面挂 method/computed（dev 下写会抛 TypeError、
+    // 非 dev 下会把所有无 data 组件的方法写进同一个单例造成跨组件串数据）；
+    // 这里换成每实例独立的空对象。
     instance.data = {}
   }
 

@@ -95,6 +95,21 @@ describe('Options API', () => {
     }).mount(container)
     expect(container.textContent).toBe('999:x')
   })
+
+  it('supports methods without a data() option (no frozen EMPTY_OBJ crash)', () => {
+    const container = document.createElement('div')
+    createApp({
+      methods: {
+        twice(n: number) {
+          return n * 2
+        },
+      },
+      render(ctx: any): any {
+        return h('p', String(ctx.twice(21)))
+      },
+    }).mount(container)
+    expect(container.textContent).toBe('42')
+  })
 })
 
 describe('v-model modifiers', () => {
