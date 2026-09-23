@@ -762,6 +762,12 @@ function baseCreateRenderer(options: RendererOptions) {
   function shouldUpdateComponent(prevVNode: VNode, nextVNode: VNode): boolean {
     const prevProps = prevVNode.props || EMPTY_OBJ
     const nextProps = nextVNode.props || EMPTY_OBJ
+    // 有 children/slots 就强制更新：slot 函数每次父渲染都是新引用，仅 props 不变时
+    // 也必须刷新 children，否则子组件 render 里只能用陈旧 slot（真 Vue 非优化路径
+    // 「prevChildren || nextChildren 且非 $stable → 强制 update」；mini 不做 $stable 优化）。
+    if (prevVNode.children || nextVNode.children) {
+      return true
+    }
     return !shallowEqualProps(prevProps, nextProps)
   }
 

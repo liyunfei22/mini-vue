@@ -361,4 +361,25 @@ describe('renderer: slots', () => {
       '<div><header><b>H</b></header><footer><i>F</i></footer></div>',
     )
   })
+
+  it('updates child when parent re-renders with new slot content (props unchanged)', async () => {
+    const n = ref(0)
+    const Child = {
+      setup(_p: any, { slots }: any) {
+        return () => h('div', slots.default())
+      },
+    }
+    const App = {
+      render() {
+        const val = n.value // 在父渲染期读取，建立父级依赖
+        return h(Child, {}, { default: () => h('b', String(val)) })
+      },
+    }
+    const { container } = mount(App)
+    expect(container.innerHTML).toBe('<div><b>0</b></div>')
+
+    n.value = 1
+    await nextTick()
+    expect(container.innerHTML).toBe('<div><b>1</b></div>')
+  })
 })
