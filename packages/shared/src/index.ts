@@ -169,9 +169,9 @@ const replacer = (_key: string, val: unknown) => {
     return {
       [`Set(${val.size})`]: [...val.values()],
     }
-  } else if (isPlainObject(val)) {
-    return JSON.stringify(val, replacer, 2)
   } else {
+    // 普通对象/数组/标量：原样返回，交给外层 JSON.stringify 的自然递归，
+    // 绝不能在这里再 stringify —— 否则 replacer 对根对象再进一次 stringify，无限递归栈溢出。
     return val
   }
 }
