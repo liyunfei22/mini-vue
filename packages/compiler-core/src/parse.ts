@@ -386,7 +386,9 @@ function parseInterpolation(
   }
   const closeIndex = context.source.indexOf(close, open.length)
   if (closeIndex === -1) {
-    return undefined
+    // 未闭合插值：抛错而非 return undefined —— 否则 parseText 对 `{{` 开头且无 `}}` 的源
+    // advanceBy(0) 原地空转、主循环永不前进，同步死循环直到 OOM。
+    throw createCompilerError(ErrorCodes.X_MISSING_INTERPOLATION_END, getCursor(context))
   }
   const start = getCursor(context)
   // closeIndex 是在「尚未 advance」的源串上算的；advance 掉 `{{` 后

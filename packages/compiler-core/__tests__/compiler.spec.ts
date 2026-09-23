@@ -70,6 +70,11 @@ describe('parse', () => {
     expect(div.children[0].tag).toBe('span')
   })
 
+  it('throws (not hangs) on unterminated interpolation', () => {
+    // 修复前 `{{` 无 `}}` 会让 parse 同步死循环 OOM；现在应迅速抛编译错误
+    expect(() => baseParse(`<div>{{ msg</div>`)).toThrow(/compiler error/)
+  })
+
   it('throws on missing closing tag', () => {
     expect(() => baseParse(`<div>`)).toThrow()
   })

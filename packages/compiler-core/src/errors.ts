@@ -30,7 +30,8 @@ export const enum ErrorCodes {
   X_INVALID_RAW_TEXT_TAG = 24,
   X_INVALID_RAW_TAG_NAME = 25,
   X_MISSING_END_TAG = 26,
-  __EXTEND_POINT__ = 27,
+  X_MISSING_INTERPOLATION_END = 27,
+  __EXTEND_POINT__ = 28,
 }
 
 export function createCompilerError(
