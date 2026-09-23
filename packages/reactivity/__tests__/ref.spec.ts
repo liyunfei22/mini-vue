@@ -150,6 +150,22 @@ describe('toRefs / toRef', () => {
     foo.value = 20
     expect(obj.foo).toBe(20)
   })
+
+  it('toRef on a getter lazily reads the getter on every access', () => {
+    const props = { x: 1 }
+    const r = toRef(() => props.x)
+    expect(r.value).toBe(1)
+
+    props.x = 42
+    expect(r.value).toBe(42) // 每次读都重新执行 getter → 与 props 保持实时连接
+    expect(isRef(r)).toBe(true)
+  })
+
+  it('toRef on a primitive wraps it as a plain ref', () => {
+    const r = toRef(1)
+    expect(isRef(r)).toBe(true)
+    expect(r.value).toBe(1)
+  })
 })
 
 describe('ref with computed', () => {

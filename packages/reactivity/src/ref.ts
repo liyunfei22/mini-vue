@@ -225,19 +225,26 @@ export type MaybeRefOrGetter<T = any> = MaybeRef<T> | (() => T)
  * 注意对普通对象 toRef 只有「引用透传」这一层（读时 track），写回时原对象若不是
  * reactive 就没有副作用——所以 toRefs 文档要求传入 reactive 对象。
  */
-export function toRef<T extends object, K extends keyof T>(
-  object: T,
-  key?: K,
-  defaultValue?: T[K],
-): Ref<T[K]> {
-  // 传进来的本身是个 ref → 直接返回（`toRef(existingRef)` 单参数形态）
-  if (isRef(object)) {
-    return object as any
+export function toRef<T extends object, K extends keyof T>(object: T, key: K, defaultValue?: T[K]): Ref<T[K]>
+export function toRef<T>(getter: () => T): Readonly<Ref<T>>
+export function toRef<T>(value: T): Ref<UnwrapRef<T>>
+export function toRef(source: any, key?: any, defaultValue?: any): any {
+  // 对齐真 Vue 的四态分派：ref / getter / 属性 / 原始值，都要正确路由。
+  if (isRef(source)) {
+    // 传进来的本身是个 ref → 原样返回（`toRef(existingRef)` 单参数形态）
+    return source
   }
-  const val = object[key!]
-  return isRef(val)
-    ? (val as Ref<T[K]>)
-    : (new ObjectRefImpl(object, key!, defaultValue) as any)
+  if (isFunction(source)) {
+    // getter 形态：toRef(() => props.x) 每次读取都重新执行 getter，保持与 props 的实时连接
+    return new GetterRefImpl(source)
+  }
+  if (isObject(source) && arguments.length > 1) {
+    // 属性形态：透传 原对象.key
+    const val = source[key!]
+    return isRef(val) ? val : new ObjectRefImpl(source, key!, defaultValue)
+  }
+  // 原始值形态：toRef(1) → ref(1)
+  return ref(source)
 }
 
 export type ToRefs<T = any> = {
@@ -253,6 +260,17 @@ export function toRefs<T extends object>(object: T): ToRefs<T> {
     ret[key] = toRef(object, key as keyof T)
   }
   return ret
+}
+
+/** getter 形态的只读 ref：每次读都重新调 getter（toRef(() => x) 专用） */
+class GetterRefImpl<T> {
+  readonly [ReactiveFlags.IS_REF] = true
+
+  constructor(private readonly _getter: () => T) {}
+
+  get value(): T {
+    return this._getter()
+  }
 }
 
 class ObjectRefImpl<T extends object, K extends keyof T> {
