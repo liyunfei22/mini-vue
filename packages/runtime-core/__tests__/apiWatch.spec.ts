@@ -3,7 +3,7 @@
  * 对齐真 Vue packages/runtime-core/__tests__/apiWatch.spec.ts 经典子集。
  */
 import { describe, expect, it, vi } from 'vitest'
-import { watch, watchEffect, nextTick } from '../src'
+import { watch, watchEffect, watchSyncEffect, watchPostEffect, nextTick } from '../src'
 import { reactive, ref, isRef } from '@mini-vue/reactivity'
 
 describe('watch', () => {
@@ -139,5 +139,56 @@ describe('watch', () => {
   it('isRef stays untouched by watch', () => {
     const n = ref(0)
     expect(isRef(n)).toBe(true)
+  })
+})
+
+describe('watch: flush timing', () => {
+  it('flush: sync runs the callback synchronously', () => {
+    const n = ref(1)
+    const spy = vi.fn()
+    watch(n, (v, o) => spy(v, o), { flush: 'sync' })
+    n.value = 2
+    expect(spy).toHaveBeenCalledWith(2, 1)
+  })
+
+  it('flush: post defers the callback until after the flush', async () => {
+    const n = ref(1)
+    const spy = vi.fn()
+    watch(n, (v, o) => spy(v, o), { flush: 'post' })
+    n.value = 2
+    expect(spy).not.toHaveBeenCalled()
+    await nextTick()
+    expect(spy).toHaveBeenCalledWith(2, 1)
+  })
+
+  it('default flush runs before post flush in the same tick', async () => {
+    const order: string[] = []
+    const n = ref(1)
+    watch(n, () => order.push('default'))
+    watch(n, () => order.push('post'), { flush: 'post' })
+    n.value = 2
+    await nextTick()
+    expect(order).toEqual(['default', 'post'])
+  })
+
+  it('watchSyncEffect runs and re-runs synchronously', () => {
+    const n = ref(1)
+    const spy = vi.fn(() => n.value)
+    watchSyncEffect(spy)
+    expect(spy).toHaveBeenCalledTimes(1)
+    n.value = 2
+    expect(spy).toHaveBeenCalledTimes(2)
+  })
+
+  it('watchPostEffect defers both the initial and subsequent runs', async () => {
+    const n = ref(1)
+    const spy = vi.fn(() => n.value)
+    watchPostEffect(spy)
+    expect(spy).not.toHaveBeenCalled() // watchEffect 类 post flush：首次也延后
+    await nextTick()
+    expect(spy).toHaveBeenCalledTimes(1)
+    n.value = 2
+    await nextTick()
+    expect(spy).toHaveBeenCalledTimes(2)
   })
 })

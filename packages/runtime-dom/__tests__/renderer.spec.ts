@@ -10,6 +10,9 @@ import {
   h,
   inject,
   nextTick,
+  onBeforeMount,
+  onBeforeUnmount,
+  onBeforeUpdate,
   onMounted,
   onUnmounted,
   onUpdated,
@@ -120,6 +123,67 @@ describe('renderer: lifecycle', () => {
     shared.value = 1
     await nextTick()
     expect(container.textContent).toBe('')
+  })
+
+  it('fires onBeforeMount before onMounted', async () => {
+    const order: string[] = []
+    const App = {
+      setup() {
+        onBeforeMount(() => order.push('beforeMount'))
+        onMounted(() => order.push('mounted'))
+      },
+      render: () => h('p', 'hi'),
+    }
+    mount(App)
+    await nextTick()
+    expect(order).toEqual(['beforeMount', 'mounted'])
+  })
+
+  it('fires onBeforeUpdate before the DOM is patched', async () => {
+    const count = ref(0)
+    let domAtBeforeUpdate = ''
+    let container: HTMLElement
+    const App = {
+      setup() {
+        onBeforeUpdate(() => {
+          domAtBeforeUpdate = container.textContent!
+        })
+        return () => h('p', String(count.value))
+      },
+    }
+    const ret = mount(App)
+    container = ret.container
+    expect(container.textContent).toBe('0')
+
+    count.value = 1
+    await nextTick()
+    expect(domAtBeforeUpdate).toBe('0') // bu 时 DOM 仍是旧值（patch 尚未发生）
+    expect(container.textContent).toBe('1')
+  })
+
+  it('fires onBeforeUnmount while the element is still in the DOM', async () => {
+    const show = ref(true)
+    let existsAtBeforeUnmount = false
+    let container: HTMLElement
+    const Child = {
+      setup() {
+        onBeforeUnmount(() => {
+          existsAtBeforeUnmount = !!container.firstChild
+        })
+        return () => h('span', 'child')
+      },
+    }
+    const App = {
+      render: () => (show.value ? h(Child) : null),
+    }
+    const ret = mount(App)
+    container = ret.container
+    expect(container.innerHTML).toBe('<span>child</span>')
+
+    show.value = false
+    await nextTick()
+    expect(existsAtBeforeUnmount).toBe(true) // bum 时元素还没被移除
+    expect(container.querySelector('span')).toBeNull() // 之后 span 被移除（App 渲染 null → <!----> 占位）
   })
 })
 
