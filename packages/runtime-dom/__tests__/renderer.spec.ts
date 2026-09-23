@@ -258,6 +258,28 @@ describe('renderer: props & emits', () => {
     btn.dispatchEvent(new Event('click'))
     expect(seen).toEqual(['hi'])
   })
+
+  it('props: fills default value when the prop is absent', () => {
+    const Child = {
+      props: { msg: { type: String, default: 'hi' } },
+      render: (ctx: any) => h('p', ctx.msg),
+    }
+    const App = { render: () => h(Child) }
+    const { container } = mount(App)
+    expect(container.textContent).toBe('hi')
+  })
+
+  it('props: Boolean prop defaults to false and casts empty string to true', () => {
+    const Child = {
+      props: { primary: Boolean },
+      render: (ctx: any) => h('p', String(ctx.primary)),
+    }
+    const absent = mount({ render: () => h(Child) }).container
+    expect(absent.textContent).toBe('false')
+
+    const empty = mount({ render: () => h(Child, { primary: '' }) }).container
+    expect(empty.textContent).toBe('true')
+  })
 })
 
 describe('renderer: attrs fallthrough', () => {
