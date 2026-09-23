@@ -67,6 +67,8 @@ function setFullProps(
   const options = instance.propsOptions
   if (rawProps) {
     for (const key in rawProps) {
+      // key/ref 是 vnode 身份的保留键（已被 vnode.key/ref 抽走），不能进 props 或 attrs
+      if (key === 'key' || key === 'ref') continue
       const value = rawProps[key]
       // 声明表单：camelized 命中 → props
       const camelizedKey = camelize(key)

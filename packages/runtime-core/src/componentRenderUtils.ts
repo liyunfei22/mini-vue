@@ -9,8 +9,9 @@
  *   - 归一化返回值为单一 vnode（null/数组/字符串都会被 normalizeVNode 兜底）
  *   - 让渲染期间的响应式依赖注册到「当前渲染组件」（供 setup 返回对象的自动解包）
  */
-import { normalizeVNode, type VNode } from './vnode'
+import { normalizeVNode, cloneVNode, type VNode } from './vnode'
 import { callWithErrorHandling, ErrorCodes } from './errorHandling'
+import { ShapeFlags } from '@mini-vue/shared'
 import { getCurrentRenderingInstance, setCurrentRenderingInstance } from './componentRenderContext'
 import type { ComponentInternalInstance } from './component'
 
@@ -28,7 +29,23 @@ export function renderComponentRoot(instance: ComponentInternalInstance): VNode 
     setCurrentRenderingInstance(prev)
   }
 
-  return normalizeVNode(result)
+  const root = normalizeVNode(result)
+
+  // attrs 透传（fallthrough）：未声明为 prop 的 class/style/普通 attr/未声明监听器，
+  // 在根节点是单个元素/组件时合并到根 vnode；inheritAttrs: false 时跳过。
+  const fallthroughAttrs = instance.attrs
+  if (
+    instance.type.inheritAttrs !== false &&
+    fallthroughAttrs &&
+    Object.keys(fallthroughAttrs).length > 0
+  ) {
+    if (root.shapeFlag & (ShapeFlags.ELEMENT | ShapeFlags.COMPONENT)) {
+      return cloneVNode(root, fallthroughAttrs)
+    }
+    // 多根 Fragment 无法单点透传：mini 直接丢弃（真 Vue 此处发 dev 告警）
+  }
+
+  return root
 }
 
 export const __DEV__ = true

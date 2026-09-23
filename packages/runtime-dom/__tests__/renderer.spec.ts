@@ -196,6 +196,33 @@ describe('renderer: props & emits', () => {
   })
 })
 
+describe('renderer: attrs fallthrough', () => {
+  it('passes undeclared attrs to the root element and merges class', () => {
+    const Child = {
+      props: ['msg'],
+      render: (ctx: any) => h('div', { class: 'inner' }, ctx.msg),
+    }
+    const App = {
+      render: () => h(Child, { msg: 'hi', class: 'outer', 'data-id': '1' }),
+    }
+    const { container } = mount(App)
+    expect(container.innerHTML).toBe('<div class="inner outer" data-id="1">hi</div>')
+  })
+
+  it('respects inheritAttrs: false', () => {
+    const Child = {
+      inheritAttrs: false,
+      props: ['msg'],
+      render: (ctx: any) => h('div', { class: 'inner' }, ctx.msg),
+    }
+    const App = {
+      render: () => h(Child, { msg: 'hi', class: 'outer' }),
+    }
+    const { container } = mount(App)
+    expect(container.innerHTML).toBe('<div class="inner">hi</div>')
+  })
+})
+
 describe('renderer: provide/inject', () => {
   it('inject resolves through the prototype chain across 3 levels', async () => {
     const Theme = Symbol('theme')

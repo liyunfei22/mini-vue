@@ -100,6 +100,18 @@ export const transformElement: NodeTransform = (node, context) => {
 
     for (let i = 0; i < el.props.length; i++) {
       const prop = el.props[i]
+      // <component :is="X"> / <component is="X">：is 已被 resolveDynamicComponent 消费成 tag，
+      // 不能再进 props —— 否则经 attrs fallthrough 会把 `is` 打到根元素上（对齐真 Vue）
+      if (
+        isDynamicComponent &&
+        ((prop.type === NodeTypes.DIRECTIVE &&
+          (prop as DirectiveNode).name === 'bind' &&
+          (prop as any).arg &&
+          (prop as any).arg.content === 'is') ||
+          (prop.type === NodeTypes.ATTRIBUTE && (prop as AttributeNode).name === 'is'))
+      ) {
+        continue
+      }
       if (prop.type === NodeTypes.ATTRIBUTE) {
         const attr = prop as AttributeNode
         const value = attr.value

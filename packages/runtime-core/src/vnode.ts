@@ -19,7 +19,10 @@ import {
   isArray,
   isFunction,
   isObject,
+  isOn,
   isString,
+  normalizeClass,
+  normalizeStyle,
   ShapeFlags,
 } from '@mini-vue/shared'
 import type { ComponentInternalInstance } from './component'
@@ -208,15 +211,47 @@ function isReactiveProxy(val: any): boolean {
   return !!(val && val.__v_raw)
 }
 
+/**
+ * 合并多个 props 对象（对齐真 Vue vnode.ts 的 mergeProps）：
+ *   class → normalizeClass 拼接；style → normalizeStyle 合并；
+ *   onXxx → 聚合成数组（去重）；其余 key → 后者覆盖前者。
+ * cloneVNode / 组件 attrs 透传（fallthrough）依赖它正确合并 class/style/监听器。
+ */
+export function mergeProps(...args: Data[]): Data {
+  const ret: Data = {}
+  for (let i = 0; i < args.length; i++) {
+    const toMerge = args[i]
+    if (!toMerge) continue
+    for (const key in toMerge) {
+      if (key === 'class') {
+        if (ret.class !== toMerge.class) {
+          ret.class = normalizeClass([ret.class, toMerge.class])
+        }
+      } else if (key === 'style') {
+        ret.style = normalizeStyle([ret.style, toMerge.style])
+      } else if (isOn(key)) {
+        const existing = ret[key]
+        const incoming = toMerge[key]
+        if (incoming && existing !== incoming && !(isArray(existing) && existing.includes(incoming))) {
+          ret[key] = existing ? ([].concat(existing as any, incoming as any) as any) : incoming
+        }
+      } else if (key !== '') {
+        ret[key] = toMerge[key]
+      }
+    }
+  }
+  return ret
+}
+
 export function cloneVNode<T>(vnode: VNode, extraProps?: Data | null, _mergeRef = false): VNode<T> {
   const { props, children, type } = vnode
-  const mergedProps = extraProps ? { ...props, ...extraProps } : props
+  const mergedProps = extraProps ? mergeProps(props || {}, extraProps) : props
   const cloned: VNode = {
     __v_isVNode: true,
     __v_skip: true,
     type,
     props: mergedProps,
-    key: mergedProps && mergedProps.key != null ? mergedProps.key : vnode.key,
+    key: mergedProps && mergedProps.key != null ? (mergedProps.key as VNodeProps['key']) : vnode.key,
     ref: vnode.ref,
     children,
     component: vnode.component,
