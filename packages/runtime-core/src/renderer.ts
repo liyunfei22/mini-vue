@@ -704,6 +704,9 @@ function baseCreateRenderer(options: RendererOptions) {
       // 重要：调度器让它走 job 队列（微任务批量刷新），而不是同步重渲染
       scheduler: () => queueJob(update),
       allowRecurse: true,
+      // 渲染 effect 显式归属组件 scope：卸载时 scope.stop() 会一并停掉它。
+      // 若不登记，卸载后共享依赖再变化，仍会经 scheduler 把已卸载组件重新 patch 回 DOM（僵尸复活）。
+      scope: instance.scope,
     }) as any)
 
     update.id = instance.uid

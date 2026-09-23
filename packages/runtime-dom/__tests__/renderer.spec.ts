@@ -99,6 +99,28 @@ describe('renderer: lifecycle', () => {
     await nextTick()
     expect(onUnmount).toHaveBeenCalledTimes(1)
   })
+
+  it('unmounted component stays gone when shared state changes', async () => {
+    const shared = ref(0)
+    const show = ref(true)
+    const Child = {
+      render: () => h('p', `child:${shared.value}`),
+    }
+    const App = {
+      render: () => (show.value ? h(Child) : null),
+    }
+    const { container } = mount(App)
+    expect(container.textContent).toBe('child:0')
+
+    show.value = false
+    await nextTick()
+    expect(container.textContent).toBe('')
+
+    // 共享依赖变化：已卸载组件的渲染 effect 若未被 scope.stop() 停掉，会把 DOM 复活
+    shared.value = 1
+    await nextTick()
+    expect(container.textContent).toBe('')
+  })
 })
 
 describe('renderer: reactivity-driven updates', () => {
