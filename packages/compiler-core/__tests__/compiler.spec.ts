@@ -60,6 +60,16 @@ describe('parse', () => {
     expect(dir.exp.content).toBe('(item, idx) in list')
   })
 
+  it('parses comments without swallowing following siblings', () => {
+    const ast: any = baseParse(`<div><!-- c --><span>x</span></div>`)
+    const div = ast.children[0]
+    expect(div.type).toBe(NT.ELEMENT)
+    expect(div.tag).toBe('div')
+    // 注释被 parseChildren 过滤，其后的 span 兄弟节点保留（修复前会吞掉 source 抛 X_MISSING_END_TAG）
+    expect(div.children).toHaveLength(1)
+    expect(div.children[0].tag).toBe('span')
+  })
+
   it('throws on missing closing tag', () => {
     expect(() => baseParse(`<div>`)).toThrow()
   })

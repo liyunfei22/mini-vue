@@ -125,8 +125,9 @@ function parseChildren(
           if (startsWith(s, '<!--')) {
             advanceBy(context, 4)
             const endIndex = context.source.indexOf('-->')
-            const content = endIndex === -1 ? context.source.slice(0, 0) : context.source.slice(0, endIndex)
-            advanceBy(context, context.source.length)
+            // 只前进到 `-->` 之后：不能把注释后的兄弟节点/结束标签一并吞掉
+            const content = endIndex === -1 ? context.source : context.source.slice(0, endIndex)
+            advanceBy(context, endIndex === -1 ? context.source.length : endIndex + 3)
             node = { type: NodeTypes.COMMENT, content, loc: null as any }
           } else {
             // DOCTYPE
