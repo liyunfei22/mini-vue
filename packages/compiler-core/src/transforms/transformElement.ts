@@ -180,6 +180,11 @@ export const transformElement: NodeTransform = (node, context) => {
                 createAssignment(exp, valueExpr),
               ),
             )
+            // 登记 dynamicProps：PROPS 快路径按名单 diff。漏登会让「程序化改模型」不驱动输入框回显
+            // （patchFlag 置了 PROPS 位但名单为空 → 渲染器什么都不比）。
+            const dProps = dynamicPropsNames || (dynamicPropsNames = [])
+            if (!dProps.includes('value')) dProps.push('value')
+            if (!dProps.includes(eventName)) dProps.push(eventName)
           } else if (tag === 'checkbox') {
             properties.push(createObjectProperty(createSimpleExpression('checked', true), exp))
             dirs.push(modelBinding(context, V_MODEL_CHECKBOX, exp, modifiers))

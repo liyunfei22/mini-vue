@@ -94,6 +94,17 @@ describe('template compile → runtime (end-to-end)', () => {
     expect(name.value).toBe('vue')
   })
 
+  it('v-model reflects programmatic model changes (dynamicProps fast path)', async () => {
+    const name = ref('mini')
+    const { container } = mountTpl(`<input v-model="name" />`, () => ({ name }))
+    const input = container.querySelector('input')! as HTMLInputElement
+    expect(input.value).toBe('mini')
+
+    name.value = 'programmatic'
+    await nextTick()
+    expect(input.value).toBe('programmatic')
+  })
+
   it('works with setup returning computed + external ref', async () => {
     const n = ref(2)
     const { container } = mountTpl(
