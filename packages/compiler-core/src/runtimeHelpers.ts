@@ -12,6 +12,8 @@ export const CREATE_COMMENT = Symbol('createCommentVNode')
 export const RENDER_LIST = Symbol('renderList')
 export const RENDER_SLOT = Symbol('renderSlot')
 export const WITH_DIRECTIVES = Symbol('withDirectives')
+export const V_ON_WITH_MODIFIERS = Symbol('withModifiers')
+export const V_ON_WITH_KEYS = Symbol('withKeys')
 export const RESOLVE_COMPONENT = Symbol('resolveComponent')
 export const RESOLVE_DYNAMIC_COMPONENT = Symbol('resolveDynamicComponent')
 export const TO_HANDLER_KEY = Symbol('toHandlerKey')
@@ -35,6 +37,8 @@ export const helperNameMap: Record<symbol, string> = {
   [RENDER_LIST]: 'renderList',
   [RENDER_SLOT]: 'renderSlot',
   [WITH_DIRECTIVES]: 'withDirectives',
+  [V_ON_WITH_MODIFIERS]: 'withModifiers',
+  [V_ON_WITH_KEYS]: 'withKeys',
   [RESOLVE_COMPONENT]: 'resolveComponent',
   [RESOLVE_DYNAMIC_COMPONENT]: 'resolveDynamicComponent',
   [TO_HANDLER_KEY]: 'toHandlerKey',

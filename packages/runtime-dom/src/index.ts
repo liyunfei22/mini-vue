@@ -32,3 +32,4 @@ export * from '@mini-vue/runtime-core'
 export { nodeOps, patchProp }
 export { vModelCheckbox, vModelRadio, vModelSelect } from './directives/vModel'
 export { vShow } from './directives/vShow'
+export { withModifiers, withKeys } from './directives/vOn'

@@ -102,14 +102,14 @@ function patchEvent(el: any, rawName: string, _prevValue: unknown, nextValue: un
     // patch：只换值
     existingInvoker.value = nextValue
   } else {
-    const name = parseName(rawName)
+    const [name, options] = parseName(rawName)
     if (nextValue) {
       // add
       const invoker = (invokers[rawName] = createInvoker(nextValue))
-      el.addEventListener(name, invoker)
+      el.addEventListener(name, invoker, options)
     } else if (existingInvoker) {
       // remove
-      el.removeEventListener(name, existingInvoker)
+      el.removeEventListener(name, existingInvoker, options)
       invokers[rawName] = undefined
     }
   }
@@ -132,11 +132,21 @@ function createInvoker(initialValue: unknown) {
   return invoker
 }
 
-/** onUpdate:xxx / onClick / on-click → 真实事件名 */
-function parseName(rawName: string): string {
-  // 自定义组件事件（onUpdate:value）在 DOM 层会落到 update:value 事件——
-  // 这里 mini 简化：统一按 onXxx → x 小写（DOM 原生事件都是小写英文）
-  return rawName.slice(2).toLowerCase()
+/** onClick / onClickOnce / onClickCapture / onClickPassive → 真实事件名 + addEventListener options */
+function parseName(rawName: string): [string, AddEventListenerOptions | undefined] {
+  let options: AddEventListenerOptions | undefined
+  let name = rawName.slice(2)
+  if (name.endsWith('Once')) {
+    options = { once: true }
+    name = name.slice(0, -4)
+  } else if (name.endsWith('Capture')) {
+    options = { capture: true }
+    name = name.slice(0, -7)
+  } else if (name.endsWith('Passive')) {
+    options = { passive: true }
+    name = name.slice(0, -7)
+  }
+  return [name.toLowerCase(), options]
 }
 
 // ---- 决定走 property 还是 attribute ----

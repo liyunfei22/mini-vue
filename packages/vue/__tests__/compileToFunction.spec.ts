@@ -80,6 +80,57 @@ describe('template compile → runtime (end-to-end)', () => {
     expect(clicks).toHaveBeenCalledTimes(1)
   })
 
+  it('v-on .prevent calls preventDefault and still runs the handler', () => {
+    const spy = vi.fn()
+    const { container } = mountTpl(
+      `<button @click.prevent="onClick">go</button>`,
+      () => ({ onClick: spy }),
+    )
+    const ev = new Event('click', { cancelable: true })
+    container.querySelector('button')!.dispatchEvent(ev)
+    expect(ev.defaultPrevented).toBe(true)
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('v-on .stop prevents propagation to parent handlers', () => {
+    const parentSpy = vi.fn()
+    const childSpy = vi.fn()
+    const { container } = mountTpl(
+      `<div @click="onParent"><button @click.stop="onChild">go</button></div>`,
+      () => ({ onParent: parentSpy, onChild: childSpy }),
+    )
+    container
+      .querySelector('button')!
+      .dispatchEvent(new Event('click', { bubbles: true }))
+    expect(childSpy).toHaveBeenCalledTimes(1)
+    expect(parentSpy).not.toHaveBeenCalled()
+  })
+
+  it('v-on .enter only fires for the Enter key', () => {
+    const spy = vi.fn()
+    const { container } = mountTpl(
+      `<input @keyup.enter="onEnter" />`,
+      () => ({ onEnter: spy }),
+    )
+    const input = container.querySelector('input')!
+    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'a' }))
+    expect(spy).not.toHaveBeenCalled()
+    input.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter' }))
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
+  it('v-on .once fires the handler only once', () => {
+    const spy = vi.fn()
+    const { container } = mountTpl(
+      `<button @click.once="onClick">go</button>`,
+      () => ({ onClick: spy }),
+    )
+    const btn = container.querySelector('button')!
+    btn.dispatchEvent(new Event('click'))
+    btn.dispatchEvent(new Event('click'))
+    expect(spy).toHaveBeenCalledTimes(1)
+  })
+
   it('v-model binds input two-way', async () => {
     const name = ref('mini')
     const { container } = mountTpl(

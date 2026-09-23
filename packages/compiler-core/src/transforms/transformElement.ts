@@ -34,11 +34,17 @@ import {
   V_MODEL_CHECKBOX,
   V_MODEL_RADIO,
   V_MODEL_SELECT,
+  V_ON_WITH_KEYS,
+  V_ON_WITH_MODIFIERS,
   V_SHOW,
   WITH_DIRECTIVES,
   helperNameMap,
 } from '../runtimeHelpers'
 import type { NodeTransform } from '../transform'
+
+// 事件修饰符分三类：事件选项（addEventListener options）/ 非按键守卫 / 按键
+const EVENT_OPTION_MODIFIERS = new Set(['capture', 'once', 'passive'])
+const NON_KEY_MODIFIERS = new Set(['stop', 'prevent', 'self', 'ctrl', 'shift', 'alt', 'meta', 'exact', 'middle'])
 
 /** 单个动态 prop 的标记：class/style 给特定位，其余进 PROPS + dynamicProps */
 function markDynamicProp(flag: number, name: string, names: string[]): number {
@@ -139,8 +145,36 @@ export const transformElement: NodeTransform = (node, context) => {
           }
         } else if (name === 'on' && arg && exp) {
           const eventName = (arg as any).content
-          const keyName = `on${eventName[0]?.toUpperCase()}${eventName.slice(1)}`
-          properties.push(createObjectProperty(createSimpleExpression(keyName, true), exp))
+          let keyName = `on${eventName[0]?.toUpperCase()}${eventName.slice(1)}`
+          let handlerExp: any = exp
+          // 修饰符分流（对齐真 Vue vOn.transformOn）：.prevent/.stop… → _withModifiers；
+          // .enter/.up… → _withKeys；.capture/.once/.passive → 事件名后缀（parseName 转 options）
+          if (modifiers.length) {
+            const keyModifiers: string[] = []
+            const nonKeyModifiers: string[] = []
+            const eventOptionModifiers: string[] = []
+            for (const m of modifiers) {
+              if (EVENT_OPTION_MODIFIERS.has(m)) eventOptionModifiers.push(m)
+              else if (NON_KEY_MODIFIERS.has(m)) nonKeyModifiers.push(m)
+              else keyModifiers.push(m)
+            }
+            if (nonKeyModifiers.length) {
+              handlerExp = createCallExpression(context.helper(V_ON_WITH_MODIFIERS) as any, [
+                handlerExp,
+                createArrayExpression(nonKeyModifiers.map((m) => createSimpleExpression(m, true))),
+              ])
+            }
+            if (keyModifiers.length) {
+              handlerExp = createCallExpression(context.helper(V_ON_WITH_KEYS) as any, [
+                handlerExp,
+                createArrayExpression(keyModifiers.map((m) => createSimpleExpression(m, true))),
+              ])
+            }
+            if (eventOptionModifiers.length) {
+              keyName += eventOptionModifiers.map((m) => m[0].toUpperCase() + m.slice(1)).join('')
+            }
+          }
+          properties.push(createObjectProperty(createSimpleExpression(keyName, true), handlerExp))
           // 事件 handler 也在变化（每条 onXxx 都是动态 prop）
           patchFlag |= PatchFlags.PROPS
           if (dynamicPropsNames && !dynamicPropsNames.includes(keyName)) dynamicPropsNames.push(keyName)
