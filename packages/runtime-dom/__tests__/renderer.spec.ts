@@ -348,6 +348,24 @@ describe('renderer: provide/inject', () => {
       .mount(container)
     expect(container.textContent).toBe('42')
   })
+
+  it('inject factory default creates a fresh instance per call', () => {
+    const Key = Symbol('key')
+    const refs: any[] = []
+    const Child = {
+      setup() {
+        refs.push(inject(Key, () => [], true))
+        return () => h('i', 'x')
+      },
+    }
+    const App = {
+      render: () => h('div', [h(Child), h(Child)]),
+    }
+    mount(App)
+    expect(refs).toHaveLength(2)
+    expect(refs[0]).toEqual([])
+    expect(refs[0]).not.toBe(refs[1]) // 每次调用都是独立实例
+  })
 })
 
 describe('renderer: slots', () => {

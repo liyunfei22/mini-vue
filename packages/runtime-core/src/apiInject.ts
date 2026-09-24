@@ -16,6 +16,7 @@
  */
 import type { ComponentInternalInstance } from './component'
 import { getCurrentInstance } from './currentInstance'
+import { isFunction } from '@mini-vue/shared'
 
 export type InjectionKey<T> = symbol & { __isInjectionKey?: true }
 
@@ -42,9 +43,15 @@ export function provide<T>(key: InjectionKey<T> | string | number, value: T): vo
 
 export function inject<T>(key: InjectionKey<T> | string): T | undefined
 export function inject<T>(key: InjectionKey<T> | string, defaultValue: T): T
+export function inject<T>(
+  key: InjectionKey<T> | string,
+  defaultValue: () => T,
+  treatDefaultAsFactory: true,
+): T
 export function inject(
   key: InjectionKey<any> | string,
   defaultValue?: unknown,
+  treatDefaultAsFactory = false,
 ): unknown {
   const instance = getCurrentInstance()
 
@@ -58,7 +65,10 @@ export function inject(
     if (provides && (key as string | symbol) in provides) {
       return provides[key as string]
     } else if (arguments.length > 1) {
-      return defaultValue
+      // 工厂默认值：treatDefaultAsFactory=true 时调用函数取结果（对象/数组默认值每次独立实例）
+      return treatDefaultAsFactory && isFunction(defaultValue)
+        ? (defaultValue as (proxy: any) => unknown)(instance.proxy)
+        : defaultValue
     }
   }
   // mini：inject 在外面调用静默返回 undefined（真 Vue 会 warn）
