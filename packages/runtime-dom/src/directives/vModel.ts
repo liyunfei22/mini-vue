@@ -13,6 +13,8 @@
  *   assigner = ($event) => (name = $event)  —— 把用户输入落回响应式变量
  *   （text/textarea 仍走 transformElement 内联的 value+onInput，见 transformElement）
  */
+import { looseEqual } from '@mini-vue/shared'
+
 export interface ObjectDirective<T = any> {
   created?(el: T, binding: any, vnode: any): void
   mounted?(el: T, binding: any, vnode: any): void
@@ -66,8 +68,8 @@ export const vModelRadio: ObjectDirective<any> = {
   mounted(el, _binding, vnode) {
     el._assigning = true
     const props = vnode.props || {}
-    // checked 条件：模型的当前值 === 本 radio 的 value
-    el.checked = props.value === props.checked
+    // checked 条件：模型的当前值 === 本 radio 的 value（宽松相等：'1' 与 1 视为同一值）
+    el.checked = looseEqual(props.checked, props.value)
     el._assigning = false
   },
   updated(el, _binding, vnode) {

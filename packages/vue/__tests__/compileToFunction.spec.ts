@@ -162,6 +162,16 @@ describe('template compile → runtime (end-to-end)', () => {
     expect(input.value).toBe('programmatic')
   })
 
+  it('v-model radio matches string model against numeric value (looseEqual)', () => {
+    const model = ref('1')
+    const { container } = mountTpl(
+      `<input type="radio" v-model="model" :value="1" />`,
+      () => ({ model }),
+    )
+    const input = container.querySelector('input')! as HTMLInputElement
+    expect(input.checked).toBe(true)
+  })
+
   it('works with setup returning computed + external ref', async () => {
     const n = ref(2)
     const { container } = mountTpl(

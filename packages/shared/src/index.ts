@@ -147,6 +147,37 @@ export const looseToNumber = (val: any): any => {
   return isNaN(n) ? val : n
 }
 
+/** 宽松相等：1 vs '1'、0 vs false 这类「值等价」都算相等（对照真 Vue looseEqual 常用子集，去 Map/Set/日期/循环引用） */
+export function looseEqual(a: any, b: any): boolean {
+  if (a === b) return true
+  // 用非谓词的 typeof 判「对象」，避免 isObject 的 `is` 谓词触发别名收窄
+  const isObj = (v: any) => v !== null && typeof v === 'object'
+  if (isObj(a) || isObj(b)) {
+    if (!isObj(a) || !isObj(b)) return false
+    if (Array.isArray(a) !== Array.isArray(b)) return false
+    if (Array.isArray(a)) {
+      if (a.length !== b.length) return false
+      for (let i = 0; i < a.length; i++) {
+        if (!looseEqual(a[i], b[i])) return false
+      }
+      return true
+    }
+    const aKeys = Object.keys(a)
+    const bKeys = Object.keys(b)
+    if (aKeys.length !== bKeys.length) return false
+    for (const key of aKeys) {
+      if (!looseEqual(a[key], b[key])) return false
+    }
+    return true
+  }
+  return String(a) === String(b)
+}
+
+/** 宽松 indexOf：数组里找「值等价」元素的下标（checkbox 组模型用） */
+export function looseIndexOf(arr: any[], val: any): number {
+  return arr.findIndex((item) => looseEqual(item, val))
+}
+
 export const toDisplayString = (val: unknown): string => {
   return val == null
     ? ''
