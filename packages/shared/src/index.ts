@@ -32,7 +32,8 @@ export const enum PatchFlags {
   STABLE_FRAGMENT = 1 << 6,
   KEYED_FRAGMENT = 1 << 7,
   UNKEYED_FRAGMENT = 1 << 8,
-  DYNAMIC_SLOTS = 1 << 9,
+  NEED_PATCH = 1 << 9,
+  DYNAMIC_SLOTS = 1 << 10,
   HOISTED = -1,
   BAIL = -2,
 }
