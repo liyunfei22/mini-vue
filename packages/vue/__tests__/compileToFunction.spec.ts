@@ -172,6 +172,24 @@ describe('template compile → runtime (end-to-end)', () => {
     expect(input.checked).toBe(true)
   })
 
+  it('v-show restores the original display value', async () => {
+    const show = ref(true)
+    const { container } = mountTpl(
+      `<div v-show="show" style="display:flex">x</div>`,
+      () => ({ show }),
+    )
+    const div = container.querySelector('div')! as HTMLElement
+    expect(div.style.display).toBe('flex')
+
+    show.value = false
+    await nextTick()
+    expect(div.style.display).toBe('none')
+
+    show.value = true
+    await nextTick()
+    expect(div.style.display).toBe('flex') // 恢复原 display，而非空串
+  })
+
   it('works with setup returning computed + external ref', async () => {
     const n = ref(2)
     const { container } = mountTpl(

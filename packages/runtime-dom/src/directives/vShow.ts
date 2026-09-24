@@ -5,18 +5,24 @@
  */
 import type { ObjectDirective } from './vModel'
 
+/** 记住元素的原始 display，恢复时用（避免 style="display:flex" 这类显式 display 被覆盖成空串） */
+const vShowOriginalDisplay = Symbol('_vod')
+
+function setDisplay(el: HTMLElement, value: unknown) {
+  el.style.display = value ? (el as any)[vShowOriginalDisplay] : 'none'
+}
+
 export const vShow: ObjectDirective<HTMLElement> = {
-  mounted(el, { value }, _vnode) {
-    if (!value) {
-      el.style.display = 'none'
-    }
+  mounted(el, { value }) {
+    // 原始 display 是 none 的记为空串（尊重 CSS 里的 display 规则）
+    ;(el as any)[vShowOriginalDisplay] = el.style.display === 'none' ? '' : el.style.display
+    setDisplay(el, value)
   },
-  updated(el, { value }, _vnode, prevVNode) {
-    // 只有值变化才动样式
-    if (value !== prevVNode.props?.['v-show-value'] && value) {
-      el.style.display = '' // 恢复
-    } else if (!value) {
-      el.style.display = 'none'
-    }
+  updated(el, { value, oldValue }) {
+    if (value === oldValue) return
+    setDisplay(el, value)
+  },
+  beforeUnmount(el) {
+    setDisplay(el, true)
   },
 }
