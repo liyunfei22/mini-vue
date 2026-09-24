@@ -190,6 +190,22 @@ describe('template compile → runtime (end-to-end)', () => {
     expect(div.style.display).toBe('flex') // 恢复原 display，而非空串
   })
 
+  it('clears leftover styles when switching from string to object style', async () => {
+    const style = ref<any>('color:red;font-size:12px')
+    const { container } = mountTpl(
+      `<div :style="style">x</div>`,
+      () => ({ style }),
+    )
+    const div = container.querySelector('div')! as HTMLElement
+    expect(div.style.color).toBe('red')
+    expect(div.style.fontSize).toBe('12px')
+
+    style.value = { color: 'blue' }
+    await nextTick()
+    expect(div.style.color).toBe('blue')
+    expect(div.style.fontSize).toBe('') // 字符串里遗留的 font-size 被清掉
+  })
+
   it('works with setup returning computed + external ref', async () => {
     const n = ref(2)
     const { container } = mountTpl(

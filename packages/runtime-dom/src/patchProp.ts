@@ -66,9 +66,10 @@ function patchStyle(el: Element, prev: any, next: any) {
       }
       return
     }
-    // 对象形态：先删「新里没有的旧键」，再赋新值
-    if (prev && typeof prev !== 'string') {
-      for (const key in prev) {
+    // 对象形态：先删「新里没有的旧键」，再赋新值。prev 是字符串时也解析成对象统一清。
+    if (prev) {
+      const prevStyle = normalizeStyle(prev) as Record<string, any>
+      for (const key in prevStyle) {
         if (!(key in nextStyle)) {
           style.removeProperty(key)
         }
