@@ -86,7 +86,7 @@ export interface WatchHandle {
 export function doWatch(
   source: any,
   cb: WatchCallback | null,
-  { immediate, deep, flush }: WatchOptions = EMPTY_OBJ,
+  { immediate, deep, flush, once }: WatchOptions = EMPTY_OBJ,
 ): WatchHandle {
   const instance = getCurrentInstance()
   // 预/后置刷新的挂载时机：组件/根 app 的渲染 effect已经在队列前头
@@ -179,6 +179,10 @@ export function doWatch(
         ]
         callWithErrorHandling(cb, instance, ErrorCodes.WATCH_CALLBACK, args)
         oldValue = newValue
+        if (once) {
+          // once：首次触发（含 immediate）后自停止，之后不再响应
+          effect.stop()
+        }
       }
     } else {
       // watchEffect

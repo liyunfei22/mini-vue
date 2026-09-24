@@ -56,6 +56,19 @@ describe('watch', () => {
     expect(spy).not.toHaveBeenCalled()
   })
 
+  it('once: true fires the callback only once', async () => {
+    const n = ref(1)
+    const spy = vi.fn()
+    watch(n, (v, o) => spy(v, o), { once: true })
+    n.value = 2
+    await nextTick()
+    expect(spy).toHaveBeenCalledWith(2, 1)
+
+    n.value = 3
+    await nextTick()
+    expect(spy).toHaveBeenCalledTimes(1) // 首次触发后已自停止
+  })
+
   it('cleanup registered inside cb runs before the next invocation', async () => {
     const n = ref(1)
     const cleanup = vi.fn()
