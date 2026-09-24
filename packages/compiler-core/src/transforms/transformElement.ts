@@ -124,7 +124,7 @@ export const transformElement: NodeTransform = (node, context) => {
         properties.push(
           createObjectProperty(
             createSimpleExpression(attr.name, true),
-            value ? createSimpleExpression(value.content, true) : createSimpleExpression('""', true),
+            value ? createSimpleExpression(value.content, true) : createSimpleExpression('', true),
           ),
         )
       } else {

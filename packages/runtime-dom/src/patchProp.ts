@@ -157,7 +157,13 @@ function shouldSetAsProp(el: Element, key: string, value: any): boolean {
 
 function patchDOMProp(el: Element, key: string, prevValue: any, nextValue: any) {
   try {
-    ;(el as any)[key] = nextValue == null ? '' : nextValue
+    let value = nextValue
+    // 布尔 DOM 属性（disabled/selected/muted/multiple…）：空串 → true、null/undefined → false。
+    // `<input disabled>` 编译成 disabled: ""，直接赋值会把布尔属性设成 false（对齐真 Vue includeBooleanAttr）
+    if ((value === '' || value == null) && typeof (el as any)[key] === 'boolean') {
+      value = value === '' ? true : false
+    }
+    ;(el as any)[key] = value == null ? '' : value
   } catch (e) {
     console.warn(`[mini-vue] error setting prop ${key}`, e)
   }

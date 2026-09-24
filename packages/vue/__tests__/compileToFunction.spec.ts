@@ -44,6 +44,12 @@ describe('template compile → runtime (end-to-end)', () => {
     expect(container.innerHTML).toBe('<p class="blue" data-n="1">hello</p>')
   })
 
+  it('renders boolean attributes like disabled as true', () => {
+    const { container } = mountTpl(`<input disabled />`, () => ({}))
+    const input = container.querySelector('input')! as HTMLInputElement
+    expect(input.disabled).toBe(true)
+  })
+
   it('handles v-if / v-else branches', async () => {
     const ok = ref(true)
     const { container } = mountTpl(

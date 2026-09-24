@@ -107,6 +107,12 @@ describe('compile (transform + codegen)', () => {
     expect(code).toContain(`onInput: ($event) => (name = $event.target.value)`)
   })
 
+  it('compiles empty boolean attributes to an empty-string value', () => {
+    const { code } = compileCode(`<input disabled />`)
+    // 空属性应编译成 disabled: ""，而非 disabled: "\"\""（双引号字符串）
+    expect(code).toContain(`disabled: ""`)
+  })
+
   it('resolves component tags via resolveComponent', () => {
     const { code } = compileCode(`<Child/>`)
     expect(code).toContain(`_resolveComponent("Child")`)
