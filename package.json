@@ -9,11 +9,15 @@
     "test:watch": "vitest",
     "dev:playground": "vite examples/playground --config examples/playground/vite.config.ts",
     "dev:showcase": "vite examples/showcase --config examples/showcase/vite.config.ts",
+    "docs:dev": "vitepress dev juejin2",
+    "docs:build": "vitepress build juejin2",
+    "docs:preview": "vitepress preview juejin2",
     "build": "node scripts/build.js --with-types",
     "build:prod": "node scripts/build.js --prod --with-types",
     "build:types": "node scripts/build.js --with-types"
   },
   "devDependencies": {
+    "@mini-vue/vue": "workspace:*",
     "@rollup/plugin-node-resolve": "^16.0.3",
     "esbuild": "^0.28.2",
     "jsdom": "^30.1.0",
@@ -22,7 +26,7 @@
     "rollup-plugin-esbuild": "^6.2.1",
     "typescript": "^5.5.0",
     "vite": "^8.3.0",
-    "vitest": "^3.0.0",
-    "@mini-vue/vue": "workspace:*"
+    "vitepress": "^1.6.4",
+    "vitest": "^3.0.0"
   }
 }

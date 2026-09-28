@@ -11,3 +11,7 @@ third_party/*/
 .vitest/
 # tsc 声明中间产物
 temp/
+
+# VitePress 构建产物与缓存
+juejin2/.vitepress/dist/
+juejin2/.vitepress/cache/
