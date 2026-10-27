@@ -12,11 +12,13 @@
 export { parse } from './parse'
 export { compileScript } from './compileScript'
 export { compileTemplate } from './compileTemplate'
+export { compileStyle } from './compileStyle'
 export type {
   SFCScriptCompileOptions,
   SFCScriptCompileResults,
 } from './compileScript'
 export type { SFCTemplateCompileOptions, SFCTemplateCompileResults } from './compileTemplate'
+export type { SFCStyleCompileOptions, SFCStyleCompileResults } from './compileStyle'
 export type {
   SFCParseOptions,
   SFCParseResult,
