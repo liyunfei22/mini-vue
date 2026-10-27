@@ -57,6 +57,24 @@ importers:
         specifier: workspace:*
         version: link:../shared
 
+  packages/compiler-sfc:
+    dependencies:
+      '@babel/parser':
+        specifier: ^7.25.0
+        version: 7.29.9
+      '@mini-vue/compiler-core':
+        specifier: workspace:*
+        version: link:../compiler-core
+      '@mini-vue/compiler-dom':
+        specifier: workspace:*
+        version: link:../compiler-dom
+      '@mini-vue/shared':
+        specifier: workspace:*
+        version: link:../shared
+      magic-string:
+        specifier: ^0.30.0
+        version: 0.30.21
+
   packages/reactivity:
     dependencies:
       '@mini-vue/shared':

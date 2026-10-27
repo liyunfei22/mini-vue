@@ -50,6 +50,8 @@ export default formats.map((f) => ({
     sourcemap: false,
     banner: `/* mini-vue ${TARGET} v${pkg.version} (${NODE_ENV}) */`,
   },
+  // compiler-sfc 的第三方运行时依赖不打包进 dist（各包自带依赖，参照真 Vue 的 external）
+  external: ['@babel/parser', /^@babel\//, 'magic-string'],
   plugins: [
     // exportConditions:['source'] → 跨包 @mini-vue/x 从兄弟包 package.json 的 exports.source 吃源码
     nodeResolve({ exportConditions: ['source'], extensions: ['.ts', '.js'] }),

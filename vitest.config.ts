@@ -20,6 +20,7 @@ export default defineConfig({
       '@mini-vue/runtime-dom': pkg('runtime-dom'),
       '@mini-vue/compiler-core': pkg('compiler-core'),
       '@mini-vue/compiler-dom': pkg('compiler-dom'),
+      '@mini-vue/compiler-sfc': pkg('compiler-sfc'),
       '@mini-vue/vue': pkg('vue'),
     },
   },

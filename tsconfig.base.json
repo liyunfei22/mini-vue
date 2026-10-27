@@ -19,6 +19,7 @@
       "@mini-vue/runtime-dom": ["./packages/runtime-dom/src/index.ts"],
       "@mini-vue/compiler-core": ["./packages/compiler-core/src/index.ts"],
       "@mini-vue/compiler-dom": ["./packages/compiler-dom/src/index.ts"],
+      "@mini-vue/compiler-sfc": ["./packages/compiler-sfc/src/index.ts"],
       "@mini-vue/vue": ["./packages/vue/src/index.ts"],
       "@mini-vue/vue-router": ["./packages/vue-router/src/index.ts"],
       "@mini-vue/pinia": ["./packages/pinia/src/index.ts"]
