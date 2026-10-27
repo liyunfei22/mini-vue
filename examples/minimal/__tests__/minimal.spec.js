@@ -9,6 +9,7 @@
 import { describe, expect, it } from 'vitest'
 import { effect, stop, reactive, ref, proxyRefs, computed } from '../reactivity.js'
 import { h, Text, createApp, queueJob } from '../renderer.js'
+import { compile } from '../compiler.js'
 
 /** 等待微任务队列 flush（渲染更新是异步的） */
 const flush = () => new Promise((r) => queueMicrotask(r))
@@ -344,5 +345,78 @@ describe('renderer: 组件', () => {
     shared.value = 999
     await flush()
     expect(container.innerHTML).toBe('<div>gone</div>') // 没有复活
+  })
+})
+
+describe('compiler: 模板 → render', () => {
+  it('文本 + 插值：模板裸名经 with(ctx) 解析', () => {
+    const render = compile(`<p>计数：{{ count + 1 }}</p>`)
+    const vnode = render({ count: 41 })
+    expect(vnode.type).toBe('p')
+    // 「计数：」是文本节点、{{ }} 是插值节点——mixin 展开成两个
+    expect(vnode.children[0].children).toBe('计数：')
+    expect(vnode.children[1].children).toBe('42') // 表达式原样内嵌，JS 自己算
+  })
+
+  it('产物确实是 with(ctx) 形态（探照灯教学点）', () => {
+    const render = compile(`<p>{{ a }}</p>`)
+    expect(render.toString()).toContain('with (ctx)')
+  })
+
+  it('事件编译成 onXxx 回调：触发时才执行表达式', () => {
+    const render = compile(`<button @click="count++">go</button>`)
+    const ctx = { count: 0 }
+    const vnode = render(ctx)
+    expect(vnode.props.onClick).toBeTypeOf('function')
+    expect(ctx.count).toBe(0) // 渲染期不执行
+    vnode.props.onClick()
+    expect(ctx.count).toBe(1) // 点击才执行
+  })
+
+  it('动态绑定 :attr 运行时求值；静态属性走字面量', () => {
+    const render = compile(`<div :class="cls" id="fixed"></div>`)
+    const vnode = render({ cls: 'dynamic' })
+    expect(vnode.props.class).toBe('dynamic')
+    expect(vnode.props.id).toBe('fixed')
+  })
+
+  it('v-for：数组 + item/index，展开成 map', () => {
+    const render = compile(`<ul><li v-for="item, i in list">{{ i }}:{{ item }}</li></ul>`)
+    const vnode = render({ list: ['a', 'b'] })
+    expect(vnode.children).toHaveLength(2) // flatMap 把 map 展开成 2 个 li
+    // li 内容是 mixin：{{ i }} + ':' + {{ item }} 三个文本节点
+    const li = vnode.children[1]
+    expect(li.children[0].children).toBe('1')
+    expect(li.children[1].children).toBe(':')
+    expect(li.children[2].children).toBe('b')
+  })
+
+  it('组件标签（首字母大写）→ with(ctx) 裸名引用', () => {
+    const Child = { setup: () => ({}), render: (c) => null }
+    const render = compile(`<Child :n="1" /><div>end</div>`)
+    const vnode = render({ Child }) // 多根模板 → 数组根（Fragment 极简版）
+    expect(vnode[0].type).toBe(Child)
+    expect(vnode[1].type).toBe('div')
+  })
+
+  it('自闭合与嵌套元素', () => {
+    const render = compile(`<div><span/><b>x</b></div>`)
+    const vnode = render({})
+    expect(vnode.children).toHaveLength(2)
+    expect(vnode.children[0].type).toBe('span')
+    expect(vnode.children[1].children[0].children).toBe('x')
+  })
+
+  it('端到端：compile → createApp → 点击 → DOM 文本变化', async () => {
+    const container = document.createElement('div')
+    const count = ref(0)
+    createApp({
+      setup: () => ({ count }),
+      render: compile(`<p>{{ count }}</p><button @click="count++">go</button>`),
+    }).mount(container)
+    expect(container.innerHTML).toBe('<p>0</p><button>go</button>')
+    container.querySelector('button').dispatchEvent(new MouseEvent('click'))
+    await flush()
+    expect(container.innerHTML).toBe('<p>1</p><button>go</button>')
   })
 })

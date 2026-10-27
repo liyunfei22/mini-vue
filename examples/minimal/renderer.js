@@ -1,35 +1,34 @@
 /**
  * renderer.js —— 第二层：渲染器
- *
- * 本文件解决一个问题：「知道了之后，谁来画？」
- *
- * 三句话讲完：
- *   - vnode 是「图纸」（type/props/children），h 是画图纸的函数
- *   - patch 是「施工队」：挂载（n1 为空）、更新（同型就地 diff）、换型（先拆后建）
- *   - 组件 = 函数 + 状态 + 自己的渲染 effect；它重渲染的调度交给微任务队列
- *
- * 对应 mini-vue：packages/runtime-core/src/vnode.ts、h.ts、renderer.ts、
- * scheduler.ts、component.ts（组件 props 用 reactive 包裹，是 mini-vue
- * applyPreUpdate 机制的极简替代：父改 props → trigger → 组件自动重渲染）
- * 砍掉的：keyed diff（重排出错正是文章 07 的引入场景）、插槽/生命周期/watch/
- *   inject-provide、fragment/teleport/keep-alive/transition
+ * 解决：「知道了之后，谁来画？」
+ * 三句话：vnode 是图纸（h 画图纸），patch 是施工队（挂载/同型就地 diff/换型
+ * 先拆后建），组件 = 函数 + 状态 + 自己的渲染 effect（微任务队列批量重渲染）。
+ * 对应 mini-vue：packages/runtime-core/src/（vnode/h/renderer/scheduler/
+ * component）。组件 props 用 reactive 包裹，是 mini-vue applyPreUpdate 的
+ * 极简替代：父改 props → trigger → 组件自动重渲染。
+ * 砍掉：keyed diff（重排出错正是文章 07 的引入场景）、插槽/生命周期/watch/
+ * inject-provide、fragment 类型（多根模板直接用数组）、keep-alive/transition。
  */
 import { effect, reactive, ref, proxyRefs, stop } from './reactivity.js'
 
 // ---------------------------------------------------------------
-// vnode 与 h：图纸
-//   type: 'div' 元素 / Text 文本 / 对象-函数：组件
-//   h 负责 children 归一化：裸字符串/数字 → Text vnode；单 vnode → 数组；
-//   —— patch 从此只见到统一的「数组 of vnode」
+// vnode 与 h：图纸。type: 'div' 元素 / Text 文本 / 对象-函数：组件
+// h 负责 children 归一化：裸字符串/数字 → Text vnode；单 vnode → 数组；
+// v-for 的 map 结果（数组）→ flatMap 展开。patch 从此只见「数组 of vnode」
 // ---------------------------------------------------------------
 const Text = 'Text'
 
 function h(type, props = null, children = null) {
+  if (type === Text) return { type: Text, children: String(children), el: null, component: null }
   if (children != null && typeof children !== 'object') {
     children = [{ type: Text, children: String(children), el: null, component: null }]
   } else if (Array.isArray(children)) {
-    children = children.map((c) =>
-      c && typeof c === 'object' ? c : { type: Text, children: String(c), el: null, component: null },
+    children = children.flatMap((c) =>
+      Array.isArray(c)
+        ? c
+        : c && typeof c === 'object'
+          ? c
+          : { type: Text, children: String(c), el: null, component: null },
     )
   } else if (children && children.type) {
     children = [children]
@@ -38,8 +37,9 @@ function h(type, props = null, children = null) {
 }
 
 // ---------------------------------------------------------------
-// 宿主操作：渲染器唯一碰 DOM 的地方（= mini-vue 的 rendererOptions）
-//   换一套实现（canvas/SSR）渲染器一行不改
+// 宿主操作：渲染器唯一碰 DOM 的地方（= mini-vue 的 rendererOptions）。
+// 属性三分类：事件 on* → addEventListener；value/checked/selected → property
+//（setAttribute('value') 不更新已有输入框——新手必踩实坑）；其余 setAttribute
 // ---------------------------------------------------------------
 const host = {
   createElement: (tag) => document.createElement(tag),
@@ -47,31 +47,18 @@ const host = {
   setText: (node, text) => (node.nodeValue = text),
   insert: (el, parent, anchor) => parent.insertBefore(el, anchor || null),
   remove: (el) => el.parentNode && el.parentNode.removeChild(el),
-  // 属性三分类：事件 on* → addEventListener；value/checked/selected → property
-  //（setAttribute('value') 不更新已有输入框——新手必踩实坑，文章 06 的缩影）；
-  // 其余 → setAttribute
   setProp(el, key, value) {
-    if (key.startsWith('on')) {
-      el.addEventListener(key.slice(2).toLowerCase(), value)
-    } else if (key === 'value' || key === 'checked' || key === 'selected') {
-      el[key] = value
-    } else {
-      el.setAttribute(key, value)
-    }
+    if (key.startsWith('on')) el.addEventListener(key.slice(2).toLowerCase(), value)
+    else if (key === 'value' || key === 'checked' || key === 'selected') el[key] = value
+    else el.setAttribute(key, value)
   },
   removeProp(el, key) {
-    if (key.startsWith('on')) {
-      el.removeEventListener(key.slice(2).toLowerCase(), el.__handlers?.[key])
-    } else {
-      el.removeAttribute(key)
-    }
+    if (key.startsWith('on')) el.removeEventListener(key.slice(2).toLowerCase(), el.__handlers?.[key])
+    else el.removeAttribute(key)
   },
 }
 
-// ---------------------------------------------------------------
-// 微任务批更新队列：一次交互多次改动 → 只渲染一次
-//   while(queue.length) + shift：flush 期间还可能追加新任务
-// ---------------------------------------------------------------
+// 微任务批更新：一次交互多次改动只渲染一次；while+shift 支持 flush 期间追加
 const queue = []
 let flushing = false
 
@@ -87,19 +74,24 @@ function queueJob(job) {
 }
 
 // ---------------------------------------------------------------
-// patch：施工队。n1 为空 = 挂载；同型 = 更新；换型 = 先拆后建
+// patch：施工队。n1 空 = 挂载；同型 = 更新；换型 = 先拆后建
 // ---------------------------------------------------------------
 function patch(n1, n2, container) {
+  if (Array.isArray(n2)) {
+    // 数组根 = Fragment 极简版（多根模板），复用就地 diff
+    const c1 = Array.isArray(n1) ? n1 : n1 ? [n1] : []
+    patchChildren({ children: c1 }, { children: n2 }, container)
+    return
+  }
   if (n1 && n1.type !== n2.type) {
     unmount(n1)
     n1 = null
   }
-  if (n2.type === Text) processText(n1, n2, container) // 注意 Text 也是字符串，必须最先判
+  if (n2.type === Text) processText(n1, n2, container) // Text 也是字符串，必须最先判
   else if (typeof n2.type === 'string') processElement(n1, n2, container)
   else processComponent(n1, n2, container) // object/function：组件
 }
 
-// ---------- 文本 ----------
 function processText(n1, n2, container) {
   if (!n1) {
     n2.el = host.createText(String(n2.children))
@@ -110,7 +102,6 @@ function processText(n1, n2, container) {
   }
 }
 
-// ---------- 元素 ----------
 function processElement(n1, n2, container) {
   if (!n1) mountElement(n2, container)
   else patchElement(n1, n2)
@@ -119,15 +110,13 @@ function processElement(n1, n2, container) {
 function mountElement(vnode, container) {
   const el = (vnode.el = host.createElement(vnode.type))
   const { props, children } = vnode
-  // 属性（事件等）→ 记一手 handler 供换绑时移除
-  el.__handlers = {}
+  el.__handlers = {} // 记一手事件 handler，供换绑时移除
   if (props) {
     for (const key in props) {
       if (key.startsWith('on')) el.__handlers[key] = props[key]
       host.setProp(el, key, props[key])
     }
   }
-  // children 已被 h 归一化为数组 of vnode
   if (Array.isArray(children)) {
     for (const child of children) patch(null, child, el)
   }
@@ -157,9 +146,8 @@ function patchElement(n1, n2) {
   patchChildren(n1, n2, el)
 }
 
-// 数组 children（h 已归一化）：同位置就地 diff + 长度增减。
-// 重排会错位（无 key）——「危险重排」按钮就是为演示这个设计内局限而存在
-// （文章 16 第 7 节实操；想重排正确 → 文章 07 的 keyed diff）
+// 同位置就地 diff + 长度增减。重排会错位（无 key）——「危险重排」按钮就是
+// 为演示这个设计内局限而存在（想重排正确 → 文章 07 的 keyed diff）
 function patchChildren(n1, n2, el) {
   const c1 = Array.isArray(n1.children) ? n1.children : []
   const c2 = Array.isArray(n2.children) ? n2.children : []
@@ -171,7 +159,9 @@ function patchChildren(n1, n2, el) {
   }
 }
 
-// ---------- 组件：函数 + 状态 + 自己的渲染 effect ----------
+// ---------------------------------------------------------------
+// 组件：函数 + 状态 + 自己的渲染 effect
+// ---------------------------------------------------------------
 function processComponent(n1, n2, container) {
   if (!n1) mountComponent(n2, container)
   else updateComponent(n1, n2)
@@ -209,11 +199,11 @@ function mountComponent(vnode, container) {
   instance.ctx = proxyRefs({ ...instance.setupState, props: instance.props })
   instance.render = render
 
-  // 组件的渲染 effect：首跑 = 挂载（旧树为空），之后每次重跑 = 更新。
-  // scheduler 把更新送进微任务队列（一次交互多次改动只渲染一次）
+  // 渲染 effect：首跑 = 挂载（旧树空），重跑 = 更新。
+  // scheduler 送进微任务队列（一次交互多次改动只渲染一次）
   instance.update = effect(
     () => {
-      // 先保存旧树再渲染新树——否则 patch(新, 新) 白跑（首版踩过）
+      // 先存旧树再渲染新树——否则 patch(新, 新) 白跑（首版踩过）
       const prevTree = instance.subTree
       instance.subTree = render(instance.ctx)
       patch(prevTree, instance.subTree, container)
@@ -235,8 +225,12 @@ function updateComponent(n1, n2) {
 }
 
 function unmount(vnode) {
+  if (Array.isArray(vnode)) {
+    for (const child of vnode) unmount(child)
+    return
+  }
   if (typeof vnode.type === 'object' || typeof vnode.type === 'function') {
-    // 组件卸载：停掉渲染 effect（stop）——否则卸载后共享状态变化会复活 DOM
+    // 组件卸载：停掉渲染 effect——否则卸载后共享状态变化会复活 DOM
     stop(vnode.component.update)
     unmount(vnode.component.subTree)
     vnode.component = null
@@ -252,7 +246,6 @@ function unmount(vnode) {
   host.remove(vnode.el)
 }
 
-// ---------- createApp：把「根组件」装进一个容器 ----------
 function createApp(rootComponent, rootProps = {}) {
   const rootVNode = h(rootComponent, rootProps)
   return {
@@ -263,9 +256,7 @@ function createApp(rootComponent, rootProps = {}) {
   }
 }
 
-// ---------------------------------------------------------------
-// 出口
-// ---------------------------------------------------------------
+// 出口：ESM import 与浏览器全局双通道
 export { h, Text, patch, createApp, queueJob }
 if (typeof window !== 'undefined') {
   Object.assign(window, { h, createApp, queueJob })
