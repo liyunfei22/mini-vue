@@ -5,6 +5,7 @@
  * codegen 阶段「import { helperName as _helperName } from 'Vue'」的信息来源；
  * 编译器不知道运行时长什么样，只用这么多 ID 与名字 —— 运行时补齐同名函数即可。
  */
+export const WITH_CTX = Symbol('withCtx')
 export const TO_DISPLAY_STRING = Symbol('toDisplayString')
 export const CREATE_ELEMENT_VNODE = Symbol('createElementVNode')
 export const CREATE_TEXT_VNODE = Symbol('createTextVNode')
@@ -30,6 +31,7 @@ export const CREATE_ELEMENT_BLOCK = Symbol('createElementBlock')
 export const HYDRATE_ELEMENT = Symbol('hydrateElement')
 
 export const helperNameMap: Record<symbol, string> = {
+  [WITH_CTX]: 'withCtx',
   [TO_DISPLAY_STRING]: 'toDisplayString',
   [CREATE_ELEMENT_VNODE]: 'createElementVNode',
   [CREATE_TEXT_VNODE]: 'createTextVNode',

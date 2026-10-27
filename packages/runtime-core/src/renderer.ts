@@ -25,7 +25,7 @@
  *   - 事件监听用朴素 add/remove（不做 invoker 缓存）
  *   - 无 keepAlive/teleport/suspense/transition
  */
-import { EMPTY_ARR, EMPTY_OBJ, isArray, PatchFlags, ShapeFlags } from '@mini-vue/shared'
+import { EMPTY_ARR, EMPTY_OBJ, NOOP, isArray, PatchFlags, ShapeFlags } from '@mini-vue/shared'
 import { effect } from '@mini-vue/reactivity'
 import { createComponentInstance, setupComponent } from './component'
 import { renderComponentRoot } from './componentRenderUtils'
@@ -55,6 +55,8 @@ export interface RendererOptions<HostNode = any, HostElement = any> {
   /** KeepAlive 的隐藏/显示（runtime-dom 注入 el.style.toggle） */
   hideNode?(el: HostElement): void
   showNode?(el: HostElement): void
+  /** SFC scoped：给元素打 data-v-xxx 属性（runtime-dom 注入 setAttribute(id, '')） */
+  setScopeId?(el: HostElement, id: string): void
 }
 
 type HostNode<T> = T extends RendererOptions<any, infer H> ? H : any
@@ -84,6 +86,8 @@ function baseCreateRenderer(options: RendererOptions) {
     // KeepAlive 隐藏/显示（可选，未注入则使用空操作）
     hideNode: hostHideNode = () => {},
     showNode: hostShowNode = () => {},
+    // SFC scoped 的 data-v-xxx 属性注入（可选；runtime-dom 提供）
+    setScopeId: hostSetScopeId = NOOP,
   } = options
 
   // /** post-flush 生命周期钩子（onMounted 等） */
@@ -116,6 +120,7 @@ function baseCreateRenderer(options: RendererOptions) {
     anchor: any = null,
     parentComponent: ComponentInternalInstance | null = null,
     isSVG = false,
+    slotScopeIds: string[] | null = null,
   ) {
     if (n1 === n2) return
 
@@ -138,11 +143,11 @@ function baseCreateRenderer(options: RendererOptions) {
         processCommentNode(n1, n2, container, anchor)
         break
       case Fragment:
-        processFragment(n1, n2, container, anchor, parentComponent)
+        processFragment(n1, n2, container, anchor, parentComponent, slotScopeIds)
         break
       default:
         if (shapeFlag & ShapeFlags.ELEMENT) {
-          processElement(n1, n2, container, anchor, parentComponent, isSVG)
+          processElement(n1, n2, container, anchor, parentComponent, isSVG, slotScopeIds)
         } else if (shapeFlag & ShapeFlags.COMPONENT) {
           processComponent(n1, n2, container, anchor, parentComponent)
         }
@@ -181,6 +186,7 @@ function baseCreateRenderer(options: RendererOptions) {
     container: any,
     anchor: any,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null,
   ) {
     if (n1 == null) {
       // startAnchor + endAnchor 围起真实内容
@@ -189,7 +195,7 @@ function baseCreateRenderer(options: RendererOptions) {
       hostInsert(n2.el, container, anchor)
       hostInsert(n2.anchor, container, anchor)
       const fchildren = isArray(n2.children) ? n2.children : [n2.children as any]
-      mountChildren(fchildren, container, n2.anchor, parentComponent)
+      mountChildren(fchildren, container, n2.anchor, parentComponent, mergeSlotScopeIds(slotScopeIds, n2.slotScopeIds))
     } else {
       n2.el = n1.el
       n2.anchor = n1.anchor
@@ -208,11 +214,12 @@ function baseCreateRenderer(options: RendererOptions) {
     anchor: any,
     parentComponent: ComponentInternalInstance | null,
     _isSVG: boolean,
+    slotScopeIds: string[] | null,
   ) {
     if (n1 == null) {
-      mountElement(n2, container, anchor, parentComponent)
+      mountElement(n2, container, anchor, parentComponent, slotScopeIds)
     } else {
-      patchElement(n1, n2, parentComponent)
+      patchElement(n1, n2, parentComponent, slotScopeIds)
     }
   }
 
@@ -221,19 +228,26 @@ function baseCreateRenderer(options: RendererOptions) {
     container: any,
     anchor: any,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null,
   ) {
     let el = (vnode.el = hostCreateElement(vnode.type as string))
     const { props, shapeFlag } = vnode
 
-    // 子节点：文本 or 数组
+    // 子节点：文本 or 数组（挂载子级的 slotScopeIds：来自父链参数 + 自身（单内容插槽
+    // 直挂字段形态）——后代的 :slotted 命中依赖这份传导）
     if (shapeFlag & ShapeFlags.TEXT_CHILDREN) {
       hostSetElementText(el, vnode.children as string)
     } else if (shapeFlag & ShapeFlags.ARRAY_CHILDREN) {
       // 编译路径 createElementVNode 对「单个 vnode children」只打 ARRAY 位不包数组
       // → 统一归一：非数组包装成单元素数组（真 Vue 的 mountChildren 也吃单 vnode）
       const children = isArray(vnode.children) ? vnode.children : [vnode.children as any]
-      mountChildren(children, el, null, parentComponent)
+      mountChildren(children, el, null, parentComponent, mergeSlotScopeIds(slotScopeIds, vnode.slotScopeIds))
     }
+
+    // scopeId（真 Vue 位置：children 之后、props 之前）：元素自身的 scopeId + 插槽 -s。
+    // 注意要合并 vnode.slotScopeIds —— 单内容插槽的 -s 直挂容器元素字段（见 renderSlot），
+    // 元素自己带头才能让 :slotted 样式命中它
+    setScopeId(el, vnode, vnode.scopeId, mergeSlotScopeIds(slotScopeIds, vnode.slotScopeIds), parentComponent)
 
     // 属性
     if (props) {
@@ -260,11 +274,41 @@ function baseCreateRenderer(options: RendererOptions) {
     container: any,
     anchor: any,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null = null,
   ) {
     for (let i = 0; i < children.length; i++) {
       const child = normalizeVNode(children[i])
       children[i] = child
-      patch(null, child, container, anchor, parentComponent, false)
+      patch(null, child, container, anchor, parentComponent, false, slotScopeIds)
+    }
+  }
+
+  /**
+   * SFC scoped 的「data-v-xxx 属性落地」唯一出口（对应真 renderer.ts 的 setScopeId）：
+   *   1. 元素自身 scopeId（创建期从 currentScopeId 捕获，见 vnode.createBaseVNode）
+   *   2. 插槽内容 -s 后缀 id（renderSlot 挂到 Fragment/元素上，随本函数/参数线程传导）
+   *   3. 子组件根元素继承：本轮挂载的正是「当前组件 subTree 的根」时，把父组件 vnode
+   *      的 scopeId 也打上来——父子组件库里，父的 scoped 样式要能命中子的根元素。
+   */
+  function setScopeId(
+    el: any,
+    vnode: VNode,
+    scopeId: string | null,
+    slotScopeIds: string[] | null,
+    parentComponent: ComponentInternalInstance | null,
+  ) {
+    if (scopeId) {
+      hostSetScopeId(el, scopeId)
+    }
+    if (slotScopeIds) {
+      for (let i = 0; i < slotScopeIds.length; i++) {
+        hostSetScopeId(el, slotScopeIds[i])
+      }
+    }
+    if (parentComponent && vnode === parentComponent.subTree) {
+      // 组件的根元素：沿 vnode 链上溯继承父级 scopeId（真 Vue 同逻辑，无 DEV_ROOT_FRAGMENT 分支）
+      const parentVNode = parentComponent.vnode
+      setScopeId(el, parentVNode, parentVNode.scopeId, parentVNode.slotScopeIds, parentComponent.parent)
     }
   }
 
@@ -272,6 +316,7 @@ function baseCreateRenderer(options: RendererOptions) {
     n1: VNode,
     n2: VNode,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null,
   ) {
     const el = (n2.el = n1.el!)
     const oldProps = (n1.props || EMPTY_OBJ) as Data
@@ -330,7 +375,7 @@ function baseCreateRenderer(options: RendererOptions) {
       }
     }
 
-    patchChildrenAndBlock(n1, n2, el, parentComponent)
+    patchChildrenAndBlock(n1, n2, el, parentComponent, slotScopeIds)
 
     // 指令 updated 钩子（beforeUpdate 在 patchChildren 前触发更贴合语义，mini 简化到 updated）
     invokeDirectiveHook(n2, n1, parentComponent, 'updated')
@@ -347,6 +392,7 @@ function baseCreateRenderer(options: RendererOptions) {
     n2: VNode,
     el: any,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null = null,
   ) {
     const patchFlag = n2.patchFlag
 
@@ -360,7 +406,7 @@ function baseCreateRenderer(options: RendererOptions) {
       (n2.dynamicChildren as any[]).length > 0 &&
       (n1.dynamicChildren as any[]).length === (n2.dynamicChildren as any[]).length
     ) {
-      patchBlockChildren(n1, n2, el, parentComponent)
+      patchBlockChildren(n1, n2, el, parentComponent, slotScopeIds)
       return
     }
 
@@ -372,7 +418,7 @@ function baseCreateRenderer(options: RendererOptions) {
       return
     }
 
-    patchChildren(n1, n2, el, null, parentComponent)
+    patchChildren(n1, n2, el, null, parentComponent, slotScopeIds)
   }
 
   function patchBlockChildren(
@@ -380,11 +426,12 @@ function baseCreateRenderer(options: RendererOptions) {
     n2: VNode,
     fallbackContainer: any,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null = null,
   ) {
     const oldDyn = (n1.dynamicChildren || []) as VNode[]
     const newDyn = (n2.dynamicChildren || []) as VNode[]
     for (let i = 0; i < newDyn.length; i++) {
-      patch(oldDyn[i], newDyn[i], fallbackContainer, null, parentComponent)
+      patch(oldDyn[i], newDyn[i], fallbackContainer, null, parentComponent, false, slotScopeIds)
     }
   }
 
@@ -399,6 +446,7 @@ function baseCreateRenderer(options: RendererOptions) {
     container: any,
     anchor: any,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null = null,
   ) {
     const c1 = n1.children as any
     const c2 = n2.children as any
@@ -421,7 +469,7 @@ function baseCreateRenderer(options: RendererOptions) {
           const prevArr = isArray(c1) ? c1 : [c1]
           const nextArr = isArray(c2) ? c2 : [c2]
           // 数组 ↔ 数组 → 走 keyed diff
-          patchKeyedChildren(prevArr, nextArr, container, anchor, parentComponent)
+          patchKeyedChildren(prevArr, nextArr, container, anchor, parentComponent, slotScopeIds)
         } else {
           // 数组 → 空：全卸载（同样考虑单对象形状）
           unmountChildren(isArray(c1) ? c1 : [c1], parentComponent)
@@ -432,7 +480,7 @@ function baseCreateRenderer(options: RendererOptions) {
           hostSetElementText(container, '')
         }
         if (nextShapeFlag & ShapeFlags.ARRAY_CHILDREN) {
-          mountChildren(c2, container, anchor, parentComponent)
+          mountChildren(c2, container, anchor, parentComponent, slotScopeIds)
         }
       }
     }
@@ -460,6 +508,7 @@ function baseCreateRenderer(options: RendererOptions) {
     container: any,
     parentAnchor: any,
     parentComponent: ComponentInternalInstance | null,
+    slotScopeIds: string[] | null = null,
   ) {
     let i = 0
     const l2 = c2.length
@@ -471,7 +520,7 @@ function baseCreateRenderer(options: RendererOptions) {
       const n1 = c1[i]
       const n2 = (c2[i] = normalizeVNode(c2[i]))
       if (isSameVNodeType(n1, n2)) {
-        patch(n1, n2, container, null, parentComponent)
+        patch(n1, n2, container, null, parentComponent, false, slotScopeIds)
       } else {
         break
       }
@@ -483,7 +532,7 @@ function baseCreateRenderer(options: RendererOptions) {
       const n1 = c1[e1]
       const n2 = (c2[e2] = normalizeVNode(c2[e2]))
       if (isSameVNodeType(n1, n2)) {
-        patch(n1, n2, container, null, parentComponent)
+        patch(n1, n2, container, null, parentComponent, false, slotScopeIds)
       } else {
         break
       }
@@ -497,7 +546,7 @@ function baseCreateRenderer(options: RendererOptions) {
         const nextPos = e2 + 1
         const anchor = nextPos < l2 ? (c2[nextPos] as VNode).el : parentAnchor
         while (i <= e2) {
-          patch(null, (c2[i] = normalizeVNode(c2[i])), container, anchor, parentComponent)
+          patch(null, (c2[i] = normalizeVNode(c2[i])), container, anchor, parentComponent, false, slotScopeIds)
           i++
         }
       }
@@ -561,7 +610,7 @@ function baseCreateRenderer(options: RendererOptions) {
           } else {
             moved = true
           }
-          patch(prevChild, c2[newIndex] as VNode, container, null, parentComponent)
+          patch(prevChild, c2[newIndex] as VNode, container, null, parentComponent, false, slotScopeIds)
           patched++
         }
       }
@@ -576,7 +625,7 @@ function baseCreateRenderer(options: RendererOptions) {
 
         if (newIndexToOldIndexMap[i] === 0) {
           // 新节点 → 挂载
-          patch(null, nextChild, container, anchor, parentComponent)
+          patch(null, nextChild, container, anchor, parentComponent, false, slotScopeIds)
         } else if (moved) {
           // 不在 LIS 里的节点才需要移动
           if (j < 0 || i !== increasingNewIndexSequence[j]) {
@@ -917,6 +966,16 @@ function shallowEqualProps(a: Data, b: Data): boolean {
     if (a[k] !== b[k]) return false
   }
   return true
+}
+
+/** 合并两层插槽 scopeId 来源（父链线程参数 + vnode 自身字段），真 Vue 是 Fragments 逐层 concat */
+function mergeSlotScopeIds(
+  a: string[] | null,
+  b: string[] | null,
+): string[] | null {
+  if (!a) return b || null
+  if (!b) return a
+  return a.concat(b)
 }
 
 type SchedulerJob = { id?: number; flags?: number } & ((...args: any[]) => any)

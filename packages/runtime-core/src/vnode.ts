@@ -119,7 +119,9 @@ function createBaseVNode(
     ctx: null, // 由渲染上下文设置（mini 简化，阶段 5 编译器需要再接线）
     dirs: null,
     transition: null,
-    scopeId: null,
+    // SFC scoped：创建时捕获「当前渲染组件」的 scopeId（componentRenderContext 的 currentScopeId）。
+    // 与真 Vue 一致：scopeId 是创建期快照，渲染器 setScopeId 负责落成 data-v-xxx 属性。
+    scopeId: currentScopeId,
     slotScopeIds: null,
     suspense: null,
     staticCount: 0,
@@ -366,7 +368,7 @@ export function withDirectives<T extends VNode>(vnode: T, directives: any[]): T 
   return vnode
 }
 
-import { currentRenderingInstance } from './componentRenderContext'
+import { currentRenderingInstance, currentScopeId } from './componentRenderContext'
 
 // ---------------------------------------------------------------
 // block 树（7-3：openBlock/createElementBlock + dynamicChildren）

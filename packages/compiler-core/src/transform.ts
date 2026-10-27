@@ -39,6 +39,10 @@ export interface TransformOptions {
   expressionPlugins?: string[]
   isNativeTag?: (tag: string) => boolean
   onError?: (error: any) => void
+  /** SFC scoped 模式的 scopeId（对应真 Vue codegen 的 scopeId 选项；transforms 靠它决策） */
+  scopeId?: string
+  /** SFC 模板里是否用到 :slotted()（决定 <slot> 第 5 参 noSlotted） */
+  slotted?: boolean
 }
 
 export interface TransformContext {
@@ -55,11 +59,13 @@ export interface TransformContext {
   removeNode(): void
   onError?(error: any): void
   components: Set<string>
+  scopeId?: string
+  slotted?: boolean
 }
 
 export function createTransformContext(
   root: RootNode,
-  { nodeTransforms = [], directiveTransforms = {}, onError }: TransformOptions,
+  { nodeTransforms = [], directiveTransforms = {}, onError, scopeId, slotted }: TransformOptions,
 ): TransformContext {
   const context: TransformContext = {
     root,
@@ -88,6 +94,8 @@ export function createTransformContext(
       context.currentNode = null
     },
     onError: onError as any,
+    scopeId,
+    slotted,
   }
   return context
 }

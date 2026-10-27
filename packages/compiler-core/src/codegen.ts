@@ -43,6 +43,11 @@ import type { ParserOptions } from './parse'
 
 interface CodegenOptions extends ParserOptions {
   onError?: (error: any) => void
+  /** SFC scoped 模式的 scopeId（data-v-xxx）。存在时禁用模块级静态提升：
+   *  提升物在模块顶层创建（currentScopeId 为空），会漏掉 data-v 属性。
+   *  真 Vue v3.5 用 cacheStatic 把它收进 render 内的 _cache（同一原因）；mini 直接不提升，
+   *  静态 vnode 改为每次 render 现场创建（创建于渲染上下文，scopeId 正确落地）。 */
+  scopeId?: string
 }
 
 interface CodegenContext {
@@ -96,9 +101,12 @@ export function generate(ast: RootNode, options: CodegenOptions = {}): CodegenRe
     newline()
   }
 
-  // 7-3 静态提升：先收集可提升的静态子树，逐个生成 const（渲染期只会创建一次）
+  // 7-3 静态提升：先收集可提升的静态子树，逐个生成 const（渲染期只会创建一次）。
+  // scoped 模式（scopeId 存在）时关掉——见 CodegenOptions.scopeId 上的说明。
   const hoistedNodes: any[] = []
-  collectHoistedNodes(ast.codegenNode, hoistedNodes)
+  if (options.scopeId == null) {
+    collectHoistedNodes(ast.codegenNode, hoistedNodes)
+  }
   if (hoistedNodes.length) {
     for (let n = 0; n < hoistedNodes.length; n++) {
       const tmp = createSubContext(context)

@@ -98,6 +98,8 @@ export interface ComponentInternalInstance {
   provides: Record<string | symbol, any>
   ctx: Data
   exposed: Record<string, any> | null
+  /** exposed 专属代理缓存（getComponentPublicInstance 惰性创建） */
+  exposeProxy?: any
 }
 
 export type SetupContext = {
@@ -269,6 +271,40 @@ function createSetupContext(instance: ComponentInternalInstance): SetupContext {
       return instance.slots as Slots
     },
     emit: (event: string, ...args: any[]) => emit(instance, event, ...args),
-    expose: (_exposed) => {},
+    expose: (exposed) => {
+      // SFC <script setup> 的 defineExpose / 编译产物自动 `__expose()` 的落点。
+      // getComponentPublicInstance 据此决定「父级视角」拿到完整代理还是 exposed 专属代理：
+      //   - 用户没碰 expose      → instance.exposed = null   → 全公开
+      //   - defineExpose({...}) → 只公开列出的键
+      //   - 编译产物补的 __expose()（无参）→ EMPTY_OBJ → 只留 $ 内建，其余关闭
+      instance.exposed = exposed || EMPTY_OBJ
+    },
   }
+}
+
+/**
+ * 取「父级视角的组件公开实例」（对应真 component.ts 的 getComponentPublicInstance）。
+ * 真 Vue 中模板 ref / $parent / $root 都经此函数取实例；mini 尚无 setRef/$parent，
+ * 它是 expose 链路的直接验证入口（SFC 测试与单元测试用）。
+ *   - 组件从未调用 expose → 返回完整公共代理（instance.proxy）
+ *   - 调用过（含编译产物自动 __expose()）→ 返回只含 exposed 键的专属代理
+ *     （proxyRefs 解包：expose 里的 ref 到外面是裸值，与真 Vue 一致）
+ */
+export function getComponentPublicInstance(
+  instance: ComponentInternalInstance,
+): any {
+  if (instance.exposed) {
+    return (
+      instance.exposeProxy ||
+      (instance.exposeProxy = new Proxy(proxyRefs(instance.exposed as any), {
+        get(target, key: string) {
+          return key in target ? (target as any)[key] : undefined
+        },
+        has(target, key: string) {
+          return key in target
+        },
+      }))
+    )
+  }
+  return instance.proxy
 }

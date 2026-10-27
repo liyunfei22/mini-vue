@@ -11,6 +11,9 @@ export { toDisplayString, looseToNumber } from '@mini-vue/shared'
 
 export { renderComponentRoot } from './componentRenderUtils'
 
+// 编译助手：scopeId 链路（withCtx 由编译器产物经 _withCtx 调用，见 transformElement.buildSlots）
+export { withCtx } from './componentRenderContext'
+
 export {
   createVNode,
   createElementVNode,
@@ -42,6 +45,7 @@ export {
   createComponentInstance,
   setupComponent,
   handleSetupResult,
+  getComponentPublicInstance,
 } from './component'
 export type {
   AppContext,

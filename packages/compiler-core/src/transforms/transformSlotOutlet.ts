@@ -7,6 +7,7 @@
  */
 import {
   createCallExpression,
+  createFunctionExpression,
   createObjectExpression,
   createObjectProperty,
   createSimpleExpression,
@@ -47,11 +48,30 @@ export const transformSlotOutlet: NodeTransform = (node, context) => {
         }
       }
 
-      element.codegenNode = createCallExpression(context.helper(RENDER_SLOT) as any, [
+      // 参数按真 Vue transformSlotOutlet.ts:23-45 的 expectedLen 裁剪节奏组装：
+      //   _renderSlot(_ctx.$slots, name, props)                 —— 无 fallback 无 scoped
+      //   _renderSlot(_ctx.$slots, name, props, fallback)       —— 有默认内容
+      //   _renderSlot(..., undefined, true)                     —— scoped 且未用 :slotted
+      // 第 5 参 noSlotted=true：跳过插槽内容的 `-s` scopeId 标记（渲染器不渲染多余的 data-v-xxx-s）
+      const slotArgs: any[] = [
         createSimpleExpression('_ctx.$slots', false),
         createSimpleExpression(slotName, true),
         propsToWatch.length ? propsExpression : createObjectExpression([]),
-      ])
+      ]
+      if (element.children.length) {
+        // <slot>默认内容</slot>：第 4 参 fallback 函数
+        slotArgs.push(
+          createFunctionExpression([], element.children.map((c: any) => c.codegenNode || c)),
+        )
+      }
+      if (context.scopeId && !context.slotted) {
+        slotArgs.push(
+          createSimpleExpression('undefined', false),
+          createSimpleExpression('true', false),
+        )
+      }
+
+      element.codegenNode = createCallExpression(context.helper(RENDER_SLOT) as any, slotArgs)
     }
   }
 }

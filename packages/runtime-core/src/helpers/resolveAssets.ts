@@ -9,7 +9,7 @@
  * 查找顺序（组件）：当前组件 setupState.xxx → 全局注册（app.component）→ 原生标签白名单
  * mini 只为 h() 世界提供能力：字符串名字 → 全局注册表；函数/对象 → 直接使用。
  */
-import { isObject, isString } from '@mini-vue/shared'
+import { hasOwn, isObject, isString } from '@mini-vue/shared'
 import { createVNode, Comment, type VNode } from '../vnode'
 import { getCurrentRenderingInstance } from '../componentRenderContext'
 import { Transition } from '../components/Transition'
@@ -32,6 +32,14 @@ export function resolveComponent(name: string, appContext?: any): any {
   if (inst) {
     let cur: any = inst
     while (cur) {
+      // script setup 编译产物：imports 会进 setup 的返回对象（with(_ctx) 模式下，
+      // 模板 <Child/> 编译成 _resolveComponent("Child")，只能经渲染上下文找到它）。
+      // 真 Vue 走 prefixIdentifiers + 模块作用域直引，从不经过 resolveComponent——
+      // 这是 mini with 模式的必要扩展（本文件头注释承诺的查找序第一项）。
+      if (cur.setupState && hasOwn(cur.setupState, name)) {
+        return cur.setupState[name]
+      }
+      // 局部 components 选项（Options API / 运行时组件注册）
       if (cur.type && cur.type.components) {
         const local = cur.type.components[name]
         if (local) return local

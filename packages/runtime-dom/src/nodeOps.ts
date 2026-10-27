@@ -39,6 +39,11 @@ export const nodeOps = {
 
   nextSibling: (node: Node): Node | null => node.nextSibling,
 
+  // SFC scoped：data-v-xxx=""（空值即可，属性选择器只要名字命中）
+  setScopeId: (el: Element, id: string) => {
+    el.setAttribute(id, '')
+  },
+
   // KeepAlive 显隐：display 切换（留在原位隐藏，不清晨 slot）
   hideNode: (el: Element) => {
     ;(el as HTMLElement).style.display = 'none'

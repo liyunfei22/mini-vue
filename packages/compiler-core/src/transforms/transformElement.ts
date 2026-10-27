@@ -30,6 +30,7 @@ import {
   CREATE_VNODE,
   RESOLVE_COMPONENT,
   RESOLVE_DYNAMIC_COMPONENT,
+  WITH_CTX,
   LOOSE_TO_NUMBER,
   V_MODEL_CHECKBOX,
   V_MODEL_RADIO,
@@ -271,7 +272,7 @@ export const transformElement: NodeTransform = (node, context) => {
     // 组件元素：slot 指令子节点收集成 slots 对象
     let vnodeChildren: any = null
     if (isComponent && el.children.length) {
-      vnodeChildren = buildSlots(el.children)
+      vnodeChildren = buildSlots(el.children, context)
     } else if (el.children.length) {
       const childCodegen = el.children.map((c: any) => c.codegenNode || c)
       vnodeChildren = childCodegen.length === 1 ? childCodegen[0] : createArrayExpression(childCodegen)
@@ -330,7 +331,7 @@ function modelBinding(context: any, helperSym: symbol, exp: any, modifiers: stri
 }
 
 /** 组件插槽收编：slot 指令子节点 → { name: () => [子codegen], default: ... } */
-function buildSlots(children: any[]): any {
+function buildSlots(children: any[], context: any): any {
   const named = new Map<string, any[]>()
   const defChildren: any[] = []
   for (const child of children) {
@@ -358,7 +359,11 @@ function buildSlots(children: any[]): any {
     entries.push(
       createObjectProperty(
         createSimpleExpression(name, true),
-        createFunctionExpression([], list.map((c: any) => c.codegenNode || c)),
+        // 插槽函数恒包 _withCtx：调用时把「当前渲染实例」切回父组件（真 Vue 同款），
+        // 插槽内容里的 组件解析/resolveComponent 与 scopeId 都要落在父作用域。
+        createCallExpression(context.helper(WITH_CTX) as any, [
+          createFunctionExpression([], list.map((c: any) => c.codegenNode || c)),
+        ]),
       ),
     )
   }
@@ -366,7 +371,9 @@ function buildSlots(children: any[]): any {
     entries.push(
       createObjectProperty(
         createSimpleExpression('default', true),
-        createFunctionExpression([], defChildren.map((c: any) => c.codegenNode || c)),
+        createCallExpression(context.helper(WITH_CTX) as any, [
+          createFunctionExpression([], defChildren.map((c: any) => c.codegenNode || c)),
+        ]),
       ),
     )
   }
