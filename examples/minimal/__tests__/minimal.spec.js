@@ -7,9 +7,9 @@
  * 分组与 examples/minimal 的文件一一对应；本文件跨 commit 渐进补齐。
  */
 import { describe, expect, it } from 'vitest'
-import { effect, stop, reactive, ref, proxyRefs, computed } from '../reactivity.js'
-import { h, Text, createApp, queueJob } from '../renderer.js'
-import { compile } from '../compiler.js'
+import { effect, stop, reactive, ref, proxyRefs, computed } from '../reactivity/index.js'
+import { h, Text, createApp, queueJob } from '../runtime-core/index.js'
+import { compile } from '../compiler-core/index.js'
 
 /** 等待微任务队列 flush（渲染更新是异步的） */
 const flush = () => new Promise((r) => queueMicrotask(r))
@@ -418,5 +418,19 @@ describe('compiler: 模板 → render', () => {
     container.querySelector('button').dispatchEvent(new MouseEvent('click'))
     await flush()
     expect(container.innerHTML).toBe('<p>1</p><button>go</button>')
+  })
+
+  it('回归：多行模板尾部空白不死循环（parseText 的 indexOf(-1) 归一化）', () => {
+    // 页面崩溃根因：parseText 在「元素后只剩空白」时 indexOf('<') 返回 -1，
+    // 未归一化会让外层 i=-1 死循环——多行模板尾部带货换行必现
+    const render = compile(`\n<button @click="count--">-</button>\n<b>{{ count }}</b>\n<button @click="count++">+</button>\n`)
+    const vnode = render({ count: 0 })
+    expect(vnode).toBeTypeOf('object') // 数组根，能正常求值就是通过
+    expect(vnode.length).toBe(3)
+    // 端到端：最小 demo 形态可挂载可加减
+    const container = document.createElement('div')
+    const count = ref(5)
+    createApp({ setup: () => ({ count }), render }).mount(container)
+    expect(container.innerHTML).toContain('>5<')
   })
 })

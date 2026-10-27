@@ -9,7 +9,7 @@
  * 砍掉：keyed diff（重排出错正是文章 07 的引入场景）、插槽/生命周期/watch/
  * inject-provide、fragment 类型（多根模板直接用数组）、keep-alive/transition。
  */
-import { effect, reactive, ref, proxyRefs, stop } from './reactivity.js'
+import { effect, reactive, ref, proxyRefs, stop } from '../reactivity/index.js'
 
 // ---------------------------------------------------------------
 // vnode 与 h：图纸。type: 'div' 元素 / Text 文本 / 对象-函数：组件

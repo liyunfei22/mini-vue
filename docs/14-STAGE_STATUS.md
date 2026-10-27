@@ -201,6 +201,8 @@
 
 **行数实况**（诚实记录）：框架三个文件 630 行（计划预算 400，超 58%）——教学注释密度按「读得懂」优先保留，文章按实际数字定口径（标题不写行数承诺）。
 
+**用户验收修复（2026-10-28）**：页面崩溃根因 = parseText 在「元素后只剩空白」时 `indexOf('<')` 返回 -1 未归一化 → 外层 i=-1 死循环（多行模板尾部换行必现；紧凑模板不触发所以此前全绿）——已修 + 回归测试。同轮按用户要求：目录结构镜像 packages（reactivity/ · runtime-core/ · compiler-core/ 各 index.js）、Demo 1 改造成 Vue 官网形态的最小 count 加减 demo。
+
 **Review Gate 判断题**
 1. 用一句话说清 reactive 的 track/trigger 分别在什么时机做什么？
 2. 组件卸载为什么必须 stop 渲染 effect？

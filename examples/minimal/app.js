@@ -8,15 +8,19 @@
  *   → 微任务队列 → instance.update 重跑 → render(ctx)（compile 产出的函数）
  *   → h() 新 vnode → patch（同位置就地 diff）→ DOM 变
  *
- * 阶段 3：四个 demo 全部由 compile() 驱动——模板即 render 的语法糖。
- * 想看「糖果」长什么样：Demo 4 探照灯把编译产物摊开在你面前。
+ * 目录结构与 packages/ 一一对应（这就是「最小版是索引」的含义）：
+ *   reactivity/      ↔ packages/reactivity
+ *   runtime-core/    ↔ packages/runtime-core
+ *   compiler-core/   ↔ packages/compiler-core
  */
-import { ref, reactive } from './reactivity.js'
-import { createApp } from './renderer.js'
-import { compile } from './compiler.js'
+import { ref, reactive } from './reactivity/index.js'
+import { createApp } from './runtime-core/index.js'
+import { compile } from './compiler-core/index.js'
 
 // ---------------------------------------------------------------
-// Demo 1 · 计数器：最小回路（h 手写版见 commit 2 的 git 历史，形态一致）
+// 最小 demo：count 加减（Vue 官网的第一个例子就是它）
+//   对比真实 Vue：createApp({ setup(){...}, render: compile(模板) })
+//   与 h 手写版的差别只有 render 的写法（居中 h 版见 git 历史）
 // ---------------------------------------------------------------
 const Counter = {
   setup() {
@@ -24,9 +28,9 @@ const Counter = {
     return { count }
   },
   render: compile(`
-<p>计数：{{ count }}</p>
-<button @click="count++">加一</button>
-<button @click="count = 0">清零</button>
+<button @click="count--">-</button>
+<b>{{ count }}</b>
+<button @click="count++">+</button>
 `),
 }
 createApp(Counter).mount(document.getElementById('demo1'))

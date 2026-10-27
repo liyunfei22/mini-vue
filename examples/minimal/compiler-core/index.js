@@ -16,7 +16,7 @@
  *   3. 函数体绝不能带 'use strict'（with 在严格模式是 SyntaxError；new
  *      Function 创建的函数是 sloppy，ESM 的严格不传染进来）
  */
-import { h, Text } from './renderer.js' // 唯一的跨层引用：编译产物运行时需要 h
+import { h, Text } from '../runtime-core/index.js' // 唯一的跨层引用：编译产物运行时需要 h
 
 // compile：模板 → render 函数（单根解包；多根/mixin 根 → 数组，renderer 兜底）
 export function compile(template) {
@@ -122,8 +122,11 @@ function parseElement(template, start) {
 
 /** 文本与插值：扫到下一个 '<'，拆 {{ }}；多段合成 mixin 由 genChildren 展开 */
 function parseText(template, start) {
-  const end = template.indexOf('<', start)
-  const raw = template.slice(start, end === -1 ? template.length : end)
+  // 关键：indexOf 找不到时返回 -1，必须归一化成 template.length——
+  // 否则返回的 end=-1 会让外层 i=-1 死循环（多行模板尾部换行必踩的坑）
+  let end = template.indexOf('<', start)
+  if (end === -1) end = template.length
+  const raw = template.slice(start, end)
   const parts = []
   let i = 0
   while (i < raw.length) {
