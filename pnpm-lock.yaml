@@ -62,6 +62,9 @@ importers:
       '@babel/parser':
         specifier: ^7.25.0
         version: 7.29.9
+      '@babel/types':
+        specifier: ^7.25.0
+        version: 7.29.8
       '@mini-vue/compiler-core':
         specifier: workspace:*
         version: link:../compiler-core

@@ -10,6 +10,11 @@
  * 文档记差异。
  */
 export { parse } from './parse'
+export { compileScript } from './compileScript'
+export type {
+  SFCScriptCompileOptions,
+  SFCScriptCompileResults,
+} from './compileScript'
 export type {
   SFCParseOptions,
   SFCParseResult,
