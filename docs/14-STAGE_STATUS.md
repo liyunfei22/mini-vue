@@ -163,3 +163,28 @@
 > 原计划中的 mini-vue-router / mini-pinia 经用户确认取消。
 
 ## 阶段 9 — ❌ 已取消（原 capstone 全家桶自洽，随 router/pinia 一并移除）
+## 阶段 10 — compiler-sfc 四件套 + 全链路整合（✅ 2026-10-27 完成）
+
+**当前状态**：✅ 已完成，review gate 通过。C1–C7 七个 commit 全绿：**354 测试**、tsc 0 错误、compiler-sfc 可独立构建、examples/sfc-app vite 构建产物验证通过（__scopeId / scoped css / -s / new Function render 全部在 bundle 中）。
+
+**交付清单**
+- [x] **C1（603e9d8）** scopeId 运行时链路：currentScopeId / vnode.scopeId 创建期快照 / setScopeId（含子组件根继承与 subTree 判定）/ withCtx 插槽上下文切换 / renderSlot 第 5 参 noSlotted + -s / expose() 落地 + getComponentPublicInstance / resolveComponent setupState 回退；compiler 侧 scopeId/slotted 选项、<slot> fallback 第 4 参、scoped 关闭静态提升（真 v3.5 cacheStatic 等价物）、插槽函数恒包 _withCtx（13 测试）
+- [x] **C2（6cdb623）** @mini-vue/compiler-sfc 包 + 手写 parse：根级分块扫描器、RAWTEXT 闭合语义（字符串内 </script> 提前闭合教学点）、template 嵌套计数、innerLoc 切片、错误收集不 throw、descriptor.slotted（19 测试）
+- [x] **C3（f01ba97）** compileScript：四宏（defineProps/Emits/Expose/Options）、普通 script 合并（__default__/Object.assign/name 守卫）、__returned__ 组装（let→get/set）、两套坐标系（babel 块内 ↔ MagicString 全局）、消灭 s.move（28 测试）——产物形态全部以真 3.5.43 实测为 ground truth
+- [x] **C4（3902809）** compileTemplate 包装 + sfc.spec 端到端（parse→编译→实例化→createApp→渲染）；顺手修复 v-on 内联语句渲染期提前执行的真 bug（isMemberExpression 判别包 ($event) => (...)）
+- [x] **C5（8675042）** compileStyle 手写 scoped 注入器：规则表（:deep/:slotted/:global 整条替换/:is 内层注入/universal//deep/ 视作 :deep 等）全按真源码实测校准；注释跳过化（删保护机制）；@media 递归/@keyframes 跳过（22 测试）
+- [x] **C7（a5d521d）** 迷你 vite 插件 + examples/sfc-app：真 .vue 应用跑通（script setup + scoped + :deep + :slotted + 父子 emit）；with(_ctx) 产物在 ESM 的教学落地（new Function 实例化）；lang=ts 用 esbuild 剥除（只剥 script——with 过不了 esbuild 模块管线）
+- [x] **C6（本篇）** 两篇文章：`juejin2/14-单文件组件与parse.md`、`juejin2/15-script宏与compileScript.md`；目录/导读/规划/config 更新
+
+**Review Gate 判断题**
+1. scoped 的 data-v 属性为什么在编译产物里搜不到？（答案：运行时八步链路，14 章第五节）
+2. `:global(.h)` 为什么输出是整个内层而不是前缀注入？（答案：真源码 selector.replaceWith 语义，15 章第六节）
+3. mini 为什么不需要 bindingMetadata？（答案：with(_ctx) 论证，15 章第四节）
+4. compileTemplate 传 scopeId 时编译器会关掉什么？为什么？（答案：静态提升；提升物在 currentScopeId 为空的模块顶层创建会漏 data-v）
+
+**本轮所学笔记**
+- 委托式是优雅真相（parse 交给 HTML 解析器），手写扫描器复刻语义即可；<br>
+- magic-string「已编辑区块不能 move」→ 消灭 move、组装 preamble；<br>
+- with(_ctx) 产物是函数体形态，ESM strict 里 with 非法 → new Function 实例化是集成层职责；<br>
+- ground truth 优先于设计直觉：:global 整条替换、defineOptions 的 name 不挡 __name、宏出现在普通 script 不拦截；<br>
+- 两套坐标系（babel 块内 offset ↔ 整源码 offset）单点换算是 compileScript 最大的 bug 源。

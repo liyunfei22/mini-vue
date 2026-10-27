@@ -34,21 +34,56 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: '开始阅读', link: '/00-权衡与整体架构' },
+      { text: '开始阅读', link: '/00-权衡与全景' },
       { text: 'GitHub', link: 'https://github.com/liyunfei22/mini-vue' },
     ],
 
     sidebar: [
       {
-        text: '实现 Vue 3 内核',
+        text: '第一部分 · 框架设计',
         items: [
           { text: '系列导读', link: '/' },
-          { text: '00 · 权衡与整体架构', link: '/00-权衡与整体架构' },
-          { text: '01 · 响应式系统', link: '/01-响应式系统' },
-          { text: '02 · 渲染器与组件', link: '/02-渲染器与组件' },
-          { text: '03 · 模板编译器', link: '/03-模板编译器' },
-          { text: '04 · 内核补全', link: '/04-内核补全' },
-          { text: '05 · 构建与发布', link: '/05-构建与发布' },
+          { text: '00 · 权衡与全景', link: '/00-权衡与全景' },
+        ],
+      },
+      {
+        text: '第二部分 · 响应式',
+        items: [
+          { text: '01 · 副作用与桶', link: '/01-副作用与桶' },
+          { text: '02 · 让依赖永远准确', link: '/02-让依赖永远准确' },
+          { text: '03 · computed 与 ref', link: '/03-computed与ref' },
+          { text: '04 · 调度器与 watch', link: '/04-调度器与watch' },
+        ],
+      },
+      {
+        text: '第三部分 · 渲染器',
+        items: [
+          { text: '05 · vnode 与挂载', link: '/05-vnode与挂载' },
+          { text: '06 · 属性事件与卸载', link: '/06-属性事件与卸载' },
+          { text: '07 · 子节点 diff', link: '/07-子节点diff' },
+          { text: '08 · 组件的本质', link: '/08-组件的本质' },
+        ],
+      },
+      {
+        text: '第四部分 · 编译器',
+        items: [
+          { text: '09 · parse 状态机', link: '/09-parse状态机' },
+          { text: '10 · transform 与 codegen', link: '/10-transform与codegen' },
+          { text: '11 · 编译优化', link: '/11-编译优化' },
+        ],
+      },
+      {
+        text: '第五部分 · 补全与交付',
+        items: [
+          { text: '12 · 内置能力补全', link: '/12-内置能力补全' },
+          { text: '13 · 从源码到产物', link: '/13-从源码到产物' },
+        ],
+      },
+      {
+        text: '第六部分 · 单文件组件',
+        items: [
+          { text: '14 · 单文件组件与 parse', link: '/14-单文件组件与parse' },
+          { text: '15 · script 宏与 compileScript', link: '/15-script宏与compileScript' },
         ],
       },
     ],
