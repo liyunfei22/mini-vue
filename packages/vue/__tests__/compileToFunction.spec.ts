@@ -5,6 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { createApp, ref, nextTick, compileToFunction, inject, provide } from '../src'
+import { compile } from '../src'
 
 function mountTpl(template: string, setup?: () => Record<string, any>) {
   const container = document.createElement('div')
@@ -84,6 +85,26 @@ describe('template compile → runtime (end-to-end)', () => {
     )
     container.querySelector('button')!.dispatchEvent(new Event('click'))
     expect(clicks).toHaveBeenCalledTimes(1)
+  })
+
+  it('v-on inline statement is deferred to click time, not evaluated at render', () => {
+    // 回归（SFC 端到端暴露）：@click="emit('go')" 若编译成 onClick: emit('go')
+    // 会在渲染期就执行一次；正确形态是包成 ($event) => (语句)
+    const calls: string[] = []
+    const { container } = mountTpl(
+      `<button @click="record('a') + record('b')">go</button>`,
+      () => ({ record: (v: string) => calls.push(v) }),
+    )
+    expect(calls).toHaveLength(0) // 渲染期不执行
+    container.querySelector('button')!.dispatchEvent(new Event('click'))
+    expect(calls).toEqual(['a', 'b']) // 点击时才执行
+  })
+
+  it('v-on member expression stays as reference (not wrapped)', () => {
+    const { code } = compile(`<button @click="onGo">go</button>`)
+    expect(code).toContain(`onClick: onGo`)
+    const { code: inlineCode } = compile(`<button @click="emit('go')">go</button>`)
+    expect(inlineCode).toContain(`onClick: ($event) => emit('go')`)
   })
 
   it('v-on .prevent calls preventDefault and still runs the handler', () => {

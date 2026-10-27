@@ -47,6 +47,9 @@ import type { NodeTransform } from '../transform'
 const EVENT_OPTION_MODIFIERS = new Set(['capture', 'once', 'passive'])
 const NON_KEY_MODIFIERS = new Set(['stop', 'prevent', 'self', 'ctrl', 'shift', 'alt', 'meta', 'exact', 'middle'])
 
+/** 成员表达式判别（v-on 内联语句包装的依据，真 Vue isMemberExpression 同款） */
+const MEMBER_EXPR_RE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*$/
+
 /** 单个动态 prop 的标记：class/style 给特定位，其余进 PROPS + dynamicProps */
 function markDynamicProp(flag: number, name: string, names: string[]): number {
   if (name === 'class') return flag | PatchFlags.CLASS
@@ -148,6 +151,17 @@ export const transformElement: NodeTransform = (node, context) => {
           const eventName = (arg as any).content
           let keyName = `on${eventName[0]?.toUpperCase()}${eventName.slice(1)}`
           let handlerExp: any = exp
+          // 内联语句包装（真 Vue vOn.ts 的 isMemberExpression 判别）：
+          //   成员表达式（onGo / a.b.c）→ 原样引用（prop 值 = 函数引用）
+          //   其它（emit('go', 42) / count++）→ 包成 `($event) => (表达式)`，
+          //   事件触发时才执行（否则会在渲染期就求值一次——SFC 端到端实测暴露）
+          const expContent = (exp as any).content
+          if (typeof expContent === 'string' && !MEMBER_EXPR_RE.test(expContent.trim())) {
+            handlerExp = createFunctionExpression(
+              [createSimpleExpression('$event', false)],
+              handlerExp,
+            )
+          }
           // 修饰符分流（对齐真 Vue vOn.transformOn）：.prevent/.stop… → _withModifiers；
           // .enter/.up… → _withKeys；.capture/.once/.passive → 事件名后缀（parseName 转 options）
           if (modifiers.length) {
