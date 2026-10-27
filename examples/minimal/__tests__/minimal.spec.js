@@ -8,6 +8,10 @@
  */
 import { describe, expect, it } from 'vitest'
 import { effect, stop, reactive, ref, proxyRefs, computed } from '../reactivity.js'
+import { h, Text, createApp, queueJob } from '../renderer.js'
+
+/** 等待微任务队列 flush（渲染更新是异步的） */
+const flush = () => new Promise((r) => queueMicrotask(r))
 
 describe('reactivity: 账本与 effect', () => {
   it('effect 首跑收集依赖，改依赖后重跑', () => {
@@ -180,5 +184,165 @@ describe('reactivity: computed 惰性与缓存', () => {
     expect(c.value).toBe(12)
     state.b = 10
     expect(c.value).toBe(20)
+  })
+})
+
+describe('renderer: h 与 mount', () => {
+  it('h 归一化：裸字符串/数字/单 vnode 全部变成 Text vnode 数组', () => {
+    expect(h('p', null, 'hi').children).toEqual([{ type: Text, children: 'hi', el: null, component: null }])
+    expect(h('p', null, 42).children[0].children).toBe('42')
+    expect(h('p', null, h('b', null, 'x')).children).toHaveLength(1)
+  })
+
+  it('mount 元素与文本：innerHTML 形状正确', () => {
+    const container = document.createElement('div')
+    createApp({
+      setup: () => ({}),
+      render: () => h('div', { id: 'app', class: 'x' }, [h('p', null, 'hello'), h('i', null, 'world')]),
+    }).mount(container)
+    expect(container.innerHTML).toBe('<div id="app" class="x"><p>hello</p><i>world</i></div>')
+  })
+
+  it('状态变更 → 微任务 flush 后 DOM 更新', async () => {
+    const count = ref(0)
+    const container = document.createElement('div')
+    createApp({
+      setup: () => ({ count }),
+      render: (ctx) => h('p', null, `计数：${ctx.count}`),
+    }).mount(container)
+    expect(container.innerHTML).toBe('<p>计数：0</p>')
+    count.value = 1
+    expect(container.innerHTML).toBe('<p>计数：0</p>') // 还没 flush
+    await flush()
+    expect(container.innerHTML).toBe('<p>计数：1</p>')
+  })
+
+  it('批更新：一次任务多次改状态，render 只重跑一次', async () => {
+    const count = ref(0)
+    let renders = 0
+    const container = document.createElement('div')
+    createApp({
+      setup: () => ({ count }),
+      render: (ctx) => {
+        renders++
+        return h('p', null, ctx.count)
+      },
+    }).mount(container)
+    expect(renders).toBe(1) // 首跑一次
+    count.value = 1
+    count.value = 2
+    count.value = 3
+    await flush()
+    expect(container.innerHTML).toBe('<p>3</p>')
+    expect(renders).toBe(2) // 三次改动只补跑一次
+  })
+
+  it('事件绑定与换绑：旧 handler 解绑，新 handler 生效', async () => {
+    const container = document.createElement('div')
+    const a = () => calls.push('a')
+    const b = () => calls.push('b')
+    const calls = []
+    const state = ref(0)
+    createApp({
+      setup: () => ({ state, a, b }),
+      render: (ctx) => h('button', { onClick: ctx.state === 0 ? ctx.a : ctx.b }, 'go'),
+    }).mount(container)
+    const btn = container.querySelector('button')
+    btn.dispatchEvent(new MouseEvent('click'))
+    expect(calls).toEqual(['a'])
+    state.value = 1
+    await flush()
+    btn.dispatchEvent(new MouseEvent('click'))
+    expect(calls).toEqual(['a', 'b']) // a 已解绑，没有重复触发
+  })
+
+  it('就地 diff：增删都在正确位置', async () => {
+    const list = ref(['a', 'b'])
+    const container = document.createElement('div')
+    createApp({
+      setup: () => ({ list }),
+      render: (ctx) => h('ul', null, ctx.list.map((t) => h('li', null, t))),
+    }).mount(container)
+    list.value = ['x', 'a', 'b'] // 头部插入
+    await flush()
+    expect(container.innerHTML).toBe('<ul><li>x</li><li>a</li><li>b</li></ul>')
+    list.value = ['x'] // 尾部删除
+    await flush()
+    expect(container.innerHTML).toBe('<ul><li>x</li></ul>')
+  })
+
+  it('换型即重建：type 变化时旧节点卸载、新节点挂载', async () => {
+    const toggle = ref(true)
+    const container = document.createElement('div')
+    createApp({
+      setup: () => ({ toggle }),
+      render: (ctx) => (ctx.toggle ? h('div', null, 'div 形态') : h('p', null, 'p 形态')),
+    }).mount(container)
+    expect(container.innerHTML).toBe('<div>div 形态</div>')
+    toggle.value = false
+    await flush()
+    expect(container.innerHTML).toBe('<p>p 形态</p>')
+  })
+
+  it.todo('重排 = 设计内局限：无 key 就地 diff 让勾选状态跟着位置走（不做 keyed diff，文章 07 的主题）')
+})
+
+describe('renderer: 组件', () => {
+  it('props 下传：父更新 props → 子组件自动重渲染（props 响应式化）', async () => {
+    const step = ref(1)
+    const container = document.createElement('div')
+    const Child = {
+      setup(props) {
+        return { read: () => props.step }
+      },
+      render: (ctx) => h('span', null, `step=${ctx.props.step}`),
+    }
+    createApp({
+      setup: () => ({ step }),
+      render: (ctx) => h(Child, { step: ctx.step }),
+    }).mount(container)
+    expect(container.innerHTML).toBe('<span>step=1</span>')
+    step.value = 5
+    await flush()
+    expect(container.innerHTML).toBe('<span>step=5</span>')
+  })
+
+  it('emit 上抛：子组件事件驱动父组件状态', async () => {
+    const container = document.createElement('div')
+    const Child = {
+      setup(_props, { emit }) {
+        return { go() { emit('update', 42) } }
+      },
+      render: (ctx) => h('button', { onClick: ctx.go }, 'go'),
+    }
+    const total = ref(0)
+    createApp({
+      setup: () => ({ total, Child }),
+      render: (ctx) => h('div', null, [h('p', null, ctx.total), h(ctx.Child, { onUpdate: (n) => (total.value += n) })]),
+    }).mount(container)
+    container.querySelector('button').dispatchEvent(new MouseEvent('click'))
+    await flush()
+    expect(container.querySelector('p').textContent).toBe('42')
+  })
+
+  it('组件卸载 stop：卸载后共享状态变化不复活 DOM', async () => {
+    const shared = ref(0)
+    const show = ref(true)
+    const container = document.createElement('div')
+    const Child = {
+      setup: () => ({ shared }),
+      render: (ctx) => h('p', null, `shared:${ctx.shared}`),
+    }
+    const app = createApp({
+      setup: () => ({ show, Child }),
+      render: (ctx) => (ctx.show ? h(ctx.Child) : h('div', null, 'gone')),
+    })
+    app.mount(container)
+    show.value = false
+    await flush()
+    expect(container.innerHTML).toBe('<div>gone</div>')
+    shared.value = 999
+    await flush()
+    expect(container.innerHTML).toBe('<div>gone</div>') // 没有复活
   })
 })

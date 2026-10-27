@@ -9,6 +9,7 @@
     "test:watch": "vitest",
     "dev:playground": "vite examples/playground --config examples/playground/vite.config.ts",
     "dev:showcase": "vite examples/showcase --config examples/showcase/vite.config.ts",
+    "dev:minimal": "vite examples/minimal",
     "dev:sfc": "vite examples/sfc-app --config examples/sfc-app/vite.config.ts",
     "docs:dev": "vitepress dev juejin2",
     "docs:build": "vitepress build juejin2",

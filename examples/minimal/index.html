@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>mini-vue 最小闭环</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 720px; margin: 32px auto; color: #0f172a; }
+      section { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin-bottom: 16px; }
+      h2 { margin: 0 0 8px; font-size: 16px; }
+      p, li { font-size: 14px; }
+      button { margin-right: 8px; padding: 4px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #f8fafc; cursor: pointer; }
+      textarea { width: 100%; font-family: ui-monospace, monospace; font-size: 12px; }
+      pre { background: #f1f5f9; padding: 8px; border-radius: 6px; font-size: 12px; overflow-x: auto; }
+    </style>
+  </head>
+  <body>
+    <!-- 阅读顺序：reactivity.js → renderer.js → compiler.js → app.js。
+         每个 demo 块注释写着「演示什么、观察哪里」。 -->
+    <h1>mini-vue 最小闭环（400 行，把一次更新走完）</h1>
+
+    <section id="demo1">
+      <h2>Demo 1 · 计数器（最小回路）</h2>
+      <p>观察：点击按钮 → <code>count</code> 变化 → <code>&lt;p&gt;</code> 文本跟着变。</p>
+    </section>
+
+    <section id="demo2">
+      <h2>Demo 2 · 任务列表（v-for + 就地 diff 的边界）</h2>
+      <p>观察：增删项正常；点「危险重排」——文本顺序对但勾选状态错位（无 key 的设计内局限）。</p>
+    </section>
+
+    <section id="demo3">
+      <h2>Demo 3 · 父子组件（props 下传 @update 上抛）</h2>
+      <p>观察：父的加号驱动子的显示（props 响应式化）；子的按钮 emit 上去改父。</p>
+    </section>
+
+    <section id="demo4">
+      <h2>Demo 4 · 模板探照灯（编译器透明化）</h2>
+      <p>观察：左边写模板，右边实时看到编译产物与渲染结果。</p>
+      <textarea id="tpl-input" rows="5">计数器模板：<p>{{ count }}</p></textarea>
+      <h3>编译产物</h3>
+      <pre id="tpl-code">（阶段 3 接入 compiler.js 后实时显示）</pre>
+      <h3>渲染结果</h3>
+      <div id="tpl-render"></div>
+    </section>
+
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
