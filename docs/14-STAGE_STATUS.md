@@ -188,3 +188,27 @@
 - with(_ctx) 产物是函数体形态，ESM strict 里 with 非法 → new Function 实例化是集成层职责；<br>
 - ground truth 优先于设计直觉：:global 整条替换、defineOptions 的 name 不挡 __name、宏出现在普通 script 不拦截；<br>
 - 两套坐标系（babel 块内 offset ↔ 整源码 offset）单点换算是 compileScript 最大的 bug 源。
+
+## 阶段 11 — examples/minimal 最小闭环（mini-vue 先导地图）（✅ 2026-10-28 完成）
+
+**当前状态**：✅ 已完成，review gate 通过。四个 commit 全绿：**385 测试 + 1 todo**、tsc 0 错误、`pnpm dev:minimal` 可跑、vite build 冒烟通过（bundle 9.85 kB）。
+
+**交付清单**
+- [x] **C1（9af9785）** reactivity.js（~156 行）：track/trigger 两层账本、effect（parent 指针链 + scheduler 分流）、reactive（深度懒代理 + 缓存 + 代理套代理防线）、ref/proxyRefs/computed（lazy+dirty）/stop；13 条行为契约（含「无 cleanup 的幽灵重跑」设计内局限的显式断言）
+- [x] **C2（aac282a）** renderer.js（~262 行）：h+vnode（children 归一化/flatMap）、宿主三分类（事件/单值属性/getAttribute）、patch 三分支、就地 diff、组件基线（props reactive 化 = applyPreUpdate 极简替代）、渲染 effect 实例化 + stop、queueJob 微任务批更新；11 条测试 + 1 todo（重排局限）
+- [x] **C3（83c1e96）** compiler.js（~212 行）：指针扫描 parse（4 态禁整段正则）、transform 折叠进 generate、with(ctx) codegen（三条铁律：禁正则地狱/with 源头/'use strict' 禁令）、v-for 数组形态（item 是箭头参数无需作用域栈）、Tab 模板探照灯；renderer 配套（Text 特判/数组根 = Fragment 极简版）；8 条测试 + 端到端链路
+- [x] **C4（本篇）** juejin2/16-最小闭环.md（先导地图 + 三栏对照表 + 砍单 + 动手任务）+ 导读/目录/sidebar/规划更新 + 阶段 11 打卡
+
+**行数实况**（诚实记录）：框架三个文件 630 行（计划预算 400，超 58%）——教学注释密度按「读得懂」优先保留，文章按实际数字定口径（标题不写行数承诺）。
+
+**Review Gate 判断题**
+1. 用一句话说清 reactive 的 track/trigger 分别在什么时机做什么？
+2. 组件卸载为什么必须 stop 渲染 effect？
+3. 为什么生成代码不能带 'use strict'？
+4. 就地 diff 的雷区是什么？它对应 mini-vue 的哪一篇？
+
+**本轮所学笔记**
+- 「地图层」的价值 = 砍单清单本身（每砍一样都是一个「先踩雷再读解法」的引子）；<br>
+- props 响应式化是「父驱动更新」的最短实现（mini 的 applyPreUpdate 极简替代）；<br>
+- 行数预算与教学注释密度冲突时，教学优先、数字如实（文章口径随实际）；<br>
+- 探照灯（模板 vs 编译产物并排）是编译器透明化的最佳教学装置。

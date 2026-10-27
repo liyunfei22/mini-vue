@@ -86,6 +86,12 @@ export default defineConfig({
           { text: '15 · script 宏与 compileScript', link: '/15-script宏与compileScript' },
         ],
       },
+      {
+        text: '先导',
+        items: [
+          { text: '16 · 最小闭环（先导地图）', link: '/16-最小闭环' },
+        ],
+      },
     ],
 
     search: {
