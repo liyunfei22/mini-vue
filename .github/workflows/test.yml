@@ -1,0 +1,38 @@
+# 测试与构建守护：push / PR 时跑全量测试、库构建与文档站构建
+# 与 deploy.yml 保持同一套环境约定（pnpm 10 + Node 22）
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run tests (vitest)
+        run: pnpm test
+
+      - name: Build library (rollup + d.ts)
+        run: pnpm build
+
+      - name: Build docs site (VitePress)
+        run: pnpm docs:build
